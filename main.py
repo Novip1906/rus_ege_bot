@@ -1,12 +1,13 @@
-from create_bot import bot, dp
+from create_bot import dp
 from aiogram import executor
-from handlers import reg_handlers
+from handlers.handlers import reg_handlers
+from handlers.FSM_handlers import reg_fsm
 from keyboards import reg_inline_callbacks
-from admin_handlers import reg_admin_handlers
-from db import db
+from handlers.admin_handlers import reg_admin_handlers
 
 reg_admin_handlers(dp)
 reg_handlers(dp)
+reg_fsm(dp)
 reg_inline_callbacks(dp)
 
 if __name__ == '__main__':

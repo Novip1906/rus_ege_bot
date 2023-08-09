@@ -5,7 +5,8 @@ from config import MAX_PROBLEM_WORDS, buttons as btns
 
 vowels = ['а', 'е', 'ё', 'и', 'о', 'у', 'ы', 'э', 'ю', 'я']
 
-word_btn = KeyboardButton(btns['word'])
+stress_btn = KeyboardButton(btns['stress'])
+words_btn = KeyboardButton(btns['words'])
 stats_btn = KeyboardButton(btns['stats'])
 settings_btn = KeyboardButton(btns['settings'])
 reset_stats_btn = KeyboardButton(btns['reset_stats'])
@@ -15,7 +16,10 @@ yes_btn = KeyboardButton(btns['yes'])
 no_btn = KeyboardButton(btns['no'])
 
 main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
-main_kb.add(word_btn).row(stats_btn, settings_btn)
+main_kb.add(stress_btn).add(words_btn).row(stats_btn, settings_btn)
+
+words_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+words_kb.add(back_btn)
 
 yes_no_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 yes_no_kb.row(yes_btn, no_btn)
@@ -25,10 +29,10 @@ settings_kb.add(reset_stats_btn)
 settings_kb.add(words_goal)
 settings_kb.add(back_btn)
 
-words_goal_kb = ReplyKeyboardMarkup(resize_keyboard=True)
-words_goal_kb.row(KeyboardButton('50'), KeyboardButton('100'), KeyboardButton('200'))
-words_goal_kb.add(back_btn)
-def get_word_kb(word: str) -> ReplyKeyboardMarkup:
+stress_goal_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+stress_goal_kb.row(KeyboardButton('50'), KeyboardButton('100'), KeyboardButton('200'))
+stress_goal_kb.add(back_btn)
+def get_stress_kb(word: str) -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
     for i in range(len(word)):
         if word[i] in vowels:
@@ -47,13 +51,13 @@ def get_stats_p_choose_inline(current: int):
 
 async def process_stats_period_choose_callback(callback_query: types.CallbackQuery):
     period = callback_query.data[-1]
-    user_id = db.get_user_id_by_tg_id(callback_query.from_user.id)
+    user_id = db.users.get_by_tg(callback_query.from_user.id)
     if period.isdigit():
         period = int(period)
     p = [
-        db.get_words_count(user_id, period),
-        round(db.get_correct_perc(user_id, period), 3),
-        '\n'.join([f"\t- {word[0]} ({word[1]})" for word in db.get_problem_words(user_id, MAX_PROBLEM_WORDS, period)])
+        db.stress.get_words_count(user_id, period),
+        round(db.stress.get_correct_perc(user_id, period), 3),
+        '\n'.join([f"\t- {word[0]} ({word[1]})" for word in db.stress.get_problem_words(user_id, MAX_PROBLEM_WORDS, period)])
     ]
     answer = f"Слов: {p[0]}\nПравильность: {p[1]}%\nПроблемные слова:\n{p[2]}"
     await callback_query.message.edit_text(answer)

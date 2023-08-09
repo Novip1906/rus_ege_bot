@@ -1,17 +1,21 @@
 TG_TOKEN = '6678292463:AAG2dQ2HWJUVeRJhUbsENEpBzEOF9O5oM7Y'
 
-MAX_PROBLEM_WORDS = 8
+TG_TOKEN_TEST = '6368744766:AAGH5KU4Q-T8_7Y4d8uevMKQ6iA7KJJFXS8'
+TEST = True
 
+MAX_PROBLEM_WORDS = 8
 MIN_GOAL, MAX_GOAL = 10, 20000
 
 commands = [
-    ['Слово 💬'],
+    ['Ударения 💬'],
+    ['Слова 💬'],
     ['Статистика 📈'],
     ['Настройки ⚙️']
 ]
 
 buttons = {
-    'word': 'Слово 💬',
+    'stress': 'Ударения 💬',
+    'words': 'Слова 💬',
     'stats': 'Статистика 📈',
     'reset_stats': 'Сбросить статистику 🔄',
     'words_goal': 'Дневная цель 💡',
@@ -26,8 +30,9 @@ messages = {
     'cmd_not_found': 'Команда не найдена ❌',
     'settings': 'Настройки ⚙️',
     'menu': 'Главное меню',
+    'first_word': '{} {}',
     'right': 'Правильно ✅\n\nСледующее слово: *{}* {}',
-    'wrong': 'Ошибка ❌\nПравильно: {} {}\n\nСледующее слово: *{}* {}',
+    'wrong': 'Ошибка ❌\nПравильно: {} {}\n{}\nСледующее слово: *{}* {}',
     'retry': 'Попробуйте снова 🔄',
     'sure': 'Вы уверены? 🤔',
     'main_menu': 'Главное меню',

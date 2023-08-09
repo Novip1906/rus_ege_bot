@@ -24,6 +24,6 @@ class WordsManager:
     def write_to_db(self, rewrite: bool):
         db.write_words(self.get_words(), rewrite=rewrite)
 
-wordsManager = WordsManager('words.txt')
+wordsManager = WordsManager('stress.txt')
 #wordsManager.optimize_file()
 wordsManager.write_to_db(rewrite=True)
