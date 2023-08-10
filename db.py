@@ -160,6 +160,25 @@ class DB:
             self.cur.execute(f"UPDATE users SET sub_ad={value} WHERE id={user_id}")
             self.conn.commit()
 
+        def add_sub(self, user_id, days: int):
+            self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
+            start = datetime.now()
+            res = self.cur.fetchall()[0][0]
+            if res is not None:
+                start = (datetime.strptime(res, DB_DATETIME_FORMAT))
+            else:
+                self.cur.execute(f"UPDATE users SET sub_start='{datetime.now().strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
+            end = start + timedelta(days=days)
+            self.cur.execute(f"UPDATE users SET sub_end='{end.strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
+            self.conn.commit()
+
+        def get_sub_end(self, user_id):
+            self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
+            return self.cur.fetchall()[0][0]
+
+
+
+
     class _Words:
         def __init__(self, conn):
             self.conn = conn

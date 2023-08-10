@@ -15,6 +15,14 @@ async def global_message_cmd(message: types.Message):
         await message.reply("Сообщение:", reply=False)
         await FSM_gmsg.msg.set()
 
+async def give_sub_cmd(message: types.Message):
+    user_id = db.users.get_by_tg(message.from_user.id)
+    db.users.add_sub(user_id, 30)
+    end = db.users.get_sub_end(user_id)
+    await message.answer(f'+30 дней\nДо {end}')
+
+
+
 async def get_msg(message: types.Message, state: FSMContext):
     if message.text == '':
         await state.finish()
@@ -41,5 +49,6 @@ async def yes_no(message: types.Message, state: FSMContext):
 
 def reg_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(global_message_cmd, commands=['gmsg'])
+    dp.register_message_handler(give_sub_cmd, commands=['givesub'])
     dp.register_message_handler(get_msg, state=FSM_gmsg.msg, content_types=['photo', 'text'])
     dp.register_message_handler(yes_no, state=FSM_gmsg.sure)
