@@ -24,8 +24,6 @@ async def get_stress(message: types.Message, state: FSMContext):
             rand = random.randint(1, db.stress.get_words_len())
             word = db.stress.get_word(rand)
             right = message.text == right_word.value
-            if db.stress.check_goal(db.users.get_by_tg(message.from_user.id)):
-                await message.reply(ms['goal_reach'], reply=False)
             comment = ''
             new_comment = ''
             explain = ''
@@ -36,6 +34,8 @@ async def get_stress(message: types.Message, state: FSMContext):
             ans = ms['right'].format(word.value.lower(), new_comment, '') if right else (ms['wrong'].format(right_word.value, comment, explain, word.value.lower(), new_comment, ''))
             await message.reply(ans, reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
             db.stress.log_word_guess(db.users.get_by_tg(message.from_user.id), right_word.id, message.text, right)
+            if db.stress.check_goal(db.users.get_by_tg(message.from_user.id)):
+                await message.reply(ms['goal_reach'], reply=False)
             async with state.proxy() as data:
                 data['right_word'] = word
             await FSM_stress.word.set()
