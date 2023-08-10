@@ -1,6 +1,6 @@
 from aiogram import Dispatcher, types
 from keyboards import main_kb, get_stress_kb, get_stats_p_choose_inline, words_kb, settings_kb, stress_goal_kb
-from config import commands, MAX_PROBLEM_WORDS, buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL
+from config import commands, MAX_PROBLEM_WORDS, buttons as btns, messages as ms, SHOW_SUBSCR_AD
 import random
 from db import db
 from aiogram.dispatcher import FSMContext
@@ -10,6 +10,7 @@ from handlers.FSM import FSM_settings, FSM_stress, FSM_words
 async def start(message: types.Message):
     if not db.users.check_user_exists(message.from_user.id):
         db.users.reg_user(message.from_user.id, message.from_user.first_name)
+        db.users.set_sub_ad(db.users.get_by_tg(message.from_user.id), SHOW_SUBSCR_AD)
     await message.reply(ms['welcome'].format(message.from_user.first_name, db.stress.get_words_goal(db.users.get_by_tg(message.from_user.id))), reply_markup=main_kb, reply=False)
 
 async def all_msgs(message: types.Message, state: FSMContext):

@@ -1,6 +1,7 @@
 import sqlite3
 from models import Stress, Word
 from datetime import datetime, timedelta
+from config import SHOW_SUBSCR_AD
 
 DB_DATETIME_FORMAT = "%d.%m.%Y %H:%M:%S"
 
@@ -141,6 +142,23 @@ class DB:
         def get_by_tg(self, tg_id):
             self.cur.execute(f"SELECT id FROM users WHERE tg_id='{tg_id}'")
             return self.cur.fetchall()[0][0]
+
+        def check_sub_ad(self, user_id):
+            self.cur.execute(f"SELECT sub_ad FROM users WHERE id={user_id}")
+            r = self.cur.fetchall()[0][0]
+            if r >= SHOW_SUBSCR_AD:
+                self.cur.execute(f"UPDATE users SET sub_ad=0 WHERE id={user_id}")
+                self.conn.commit()
+                return True
+            return False
+
+        def sub_ad_count(self, user_id):
+            self.cur.execute(f"UPDATE users SET sub_ad = sub_ad + 1 WHERE id={user_id}")
+            self.conn.commit()
+
+        def set_sub_ad(self, user_id, value):
+            self.cur.execute(f"UPDATE users SET sub_ad={value} WHERE id={user_id}")
+            self.conn.commit()
 
     class _Words:
         def __init__(self, conn):

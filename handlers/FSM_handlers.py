@@ -33,8 +33,8 @@ async def get_stress(message: types.Message, state: FSMContext):
                 comment = f"\({right_word.comment}\)"
             if word.comment_exists():
                 new_comment = f"\({word.comment}\)"
-            ans = ms['right'].format('{}', new_comment)if right else (ms['wrong'].format(right_word.value, comment, explain, '{}', new_comment))
-            await message.reply(ans.format(word.value.lower()), reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
+            ans = ms['right'].format(word.value.lower(), new_comment, '') if right else (ms['wrong'].format(right_word.value, comment, explain, word.value.lower(), new_comment, ''))
+            await message.reply(ans, reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
             db.stress.log_word_guess(db.users.get_by_tg(message.from_user.id), right_word.id, message.text, right)
             async with state.proxy() as data:
                 data['right_word'] = word
@@ -91,10 +91,15 @@ async def get_word(message: types.Message, state: FSMContext):
             return
         rand = random.randint(1, db.words.get_words_len())
         word = db.words.get_word(rand)
-        explain = 'Пояснение: ||Оформите подписку, чтобы видеть пояснения к ответам||'
+        user_id = db.users.get_by_tg(message.from_user.id)
+        db.users.sub_ad_count(user_id)
+        explain = 'Пояснение: 🔒\n'
+        sub_ad = ''
+        if db.users.check_sub_ad(user_id):
+            sub_ad = f'\n{ms["sub_ad"]}'
         comment, new_comment = '', ''
         right = message.text.lower() == last_word.correct.lower()
-        answer = ms['right'].format(word.word, comment) if right else ms['wrong'].format(last_word.correct, new_comment, explain, word.word, comment)
+        answer = ms['right'].format(word.word, comment, sub_ad) if right else ms['wrong'].format(last_word.correct, new_comment, explain, word.word, comment, sub_ad)
         answer = check_for_mkv2(answer)
         await message.reply(answer, reply=False, parse_mode='MarkdownV2')
 
