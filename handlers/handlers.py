@@ -28,7 +28,8 @@ async def stress_cmd(message: types.Message, state: FSMContext):
     comment = ''
     if word.comment_exists():
         comment = f"({word.comment})"
-    await message.reply(ms['first_word'].format(word.value.lower(), comment), reply_markup=get_stress_kb(word.value.lower()), reply=False)
+    ans = ms['first_word'].format('{}', comment)
+    await message.answer(ans.format(word.value.lower()), reply_markup=get_stress_kb(word.value.lower()))
     async with state.proxy() as data:
         data['right_word'] = word
     await FSM_stress.word.set()

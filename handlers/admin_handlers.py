@@ -27,15 +27,16 @@ async def get_msg(message: types.Message, state: FSMContext):
 
 async def yes_no(message: types.Message, state: FSMContext):
     if message.text == btns['yes']:
-        tg_ids = [user[1] for user in db.get_all_users()]
+        tg_ids = [user[1] for user in db.users.get_all_users()]
         for id in tg_ids:
             async with state.proxy() as data:
-                print(data)
                 if data['photo'] != '':
                     await bot.send_photo(id, data['photo'], caption=data['msg'])
                 else:
                     await bot.send_message(id, data['msg'])
         await message.reply("Готово", reply_markup=main_kb)
+    else:
+        await message.answer('Отмена', reply_markup=main_kb)
     await state.finish()
 
 def reg_admin_handlers(dp: Dispatcher):

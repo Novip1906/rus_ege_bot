@@ -1,6 +1,6 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import StatesGroup, State
+from create_bot import bot
 from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL
 from keyboards import yes_no_kb, main_kb, stress_goal_kb, settings_kb, get_stress_kb
 from db import db
@@ -33,7 +33,8 @@ async def get_stress(message: types.Message, state: FSMContext):
                 comment = f"\({right_word.comment}\)"
             if word.comment_exists():
                 new_comment = f"\({word.comment}\)"
-            await message.reply((ms['right'].format(word.value.lower(), new_comment)if right else (ms['wrong'].format(right_word.value, comment, explain, word.value.lower(), new_comment))), reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
+            ans = ms['right'].format('{}', new_comment)if right else (ms['wrong'].format(right_word.value, comment, explain, '{}', new_comment))
+            await message.reply(ans.format(word.value.lower()), reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
             db.stress.log_word_guess(db.users.get_by_tg(message.from_user.id), right_word.id, message.text, right)
             async with state.proxy() as data:
                 data['right_word'] = word
