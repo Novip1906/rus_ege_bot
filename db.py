@@ -1,12 +1,14 @@
 import sqlite3
 from models import Stress, Word
 from datetime import datetime, timedelta
-from config import SHOW_SUBSCR_AD
+from config import SHOW_SUBSCR_AD, RANDOM_INTERVAL
 
 DB_DATETIME_FORMAT = "%d.%m.%Y %H:%M:%S"
 
+
 def current_datetime():
     return datetime.now().strftime(DB_DATETIME_FORMAT)
+
 
 class DB:
     def __init__(self, db_name):
@@ -20,7 +22,6 @@ class DB:
 
         except sqlite3.Error as error:
             print("Ошибка при подключении к sqlite", error)
-
 
     class _Stress:
         def __init__(self, conn):
@@ -46,7 +47,6 @@ class DB:
             self.cur.execute(
                 f"INSERT INTO stress_guess_logs (user_id, right_word_id, word, datetime, guessed) VALUES ('{user_id}', '{right_word_id}', '{word}', '{current_datetime()}', '{1 if guessed else 0}')")
             self.conn.commit()
-
 
         def get_words_len(self):
             self.cur.execute("SELECT COUNT(*) FROM stress")
@@ -120,12 +120,39 @@ class DB:
             logs = self.get_word_guess_logs_by_period(user_id, 2)
             return len(logs) == db.stress.get_words_goal(user_id)
 
+        def problem_counter(self, user_id):
+            self.cur.execute(f"UPDATE users SET problem_cnt=problem_cnt + 1 WHERE id={user_id}")
+            self.conn.commit()
+
+        def check_problem_cnt(self, user_id):
+            self.cur.execute(f"SELECT problem_cnt FROM users WHERE id={user_id}")
+            r = self.cur.fetchall()[0][0]
+            if r >= RANDOM_INTERVAL:
+                self.cur.execute(f"UPDATE users SET problem_cnt=0 WHERE id={user_id}")
+                self.conn.commit()
+                return True
+            return False
+
+        def add_to_problem_words(self, user_id, word_id):
+            try:
+                self.cur.execute(f"INSERT INTO problem_stress (user_id, word_id) VALUES ({user_id}, {word_id})")
+                self.conn.commit()
+            except Exception:
+                pass
+
+        def get_problem_word_ids(self, user_id):
+            self.cur.execute(f"SELECT word_id FROM problem_stress WHERE user_id={user_id}")
+            return [r[0] for r in self.cur.fetchall()]
+
+        def remove_problem_word(self, user_id, word_id):
+            self.cur.execute(f"DELETE FROM problem_stress WHERE user_id={user_id} AND word_id={word_id}")
+            self.conn.commit()
+
 
     class _Users:
         def __init__(self, conn):
             self.conn = conn
             self.cur = self.conn.cursor()
-
 
         def get_all_users(self) -> list:
             self.cur.execute(f"SELECT * FROM users")
@@ -136,7 +163,8 @@ class DB:
             return len(self.cur.fetchall()) > 0
 
         def reg_user(self, tg_id, first_name):
-            self.cur.execute(f"INSERT INTO users (tg_id, first_name, create_datetime) VALUES ('{tg_id}', '{first_name}', '{current_datetime()}')")
+            self.cur.execute(
+                f"INSERT INTO users (tg_id, first_name, create_datetime) VALUES ('{tg_id}', '{first_name}', '{current_datetime()}')")
             self.conn.commit()
 
         def get_by_tg(self, tg_id):
@@ -167,7 +195,8 @@ class DB:
             if res is not None:
                 start = (datetime.strptime(res, DB_DATETIME_FORMAT))
             else:
-                self.cur.execute(f"UPDATE users SET sub_start='{datetime.now().strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
+                self.cur.execute(
+                    f"UPDATE users SET sub_start='{datetime.now().strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
             end = start + timedelta(days=days)
             self.cur.execute(f"UPDATE users SET sub_end='{end.strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
             self.conn.commit()
@@ -176,8 +205,8 @@ class DB:
             self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
             return self.cur.fetchall()[0][0]
 
-
-
+        def check_sub(self, user_id) -> bool:
+            pass
 
     class _Words:
         def __init__(self, conn):
@@ -194,7 +223,6 @@ class DB:
             if len(r) == 0:
                 return None
             return Word(r[0][0], r[0][1], r[0][2], r[0][3])
-
 
 
 db = DB('database.db')

@@ -16,4 +16,10 @@ class Word:
     id: int
     word: str
     correct: str
-    explain: str
+    explain: str = ''
+
+
+@dataclass
+class ProblemWords:
+    user_id: int
+    words: set

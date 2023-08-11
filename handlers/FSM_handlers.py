@@ -1,11 +1,13 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from create_bot import bot
+from models import ProblemWords
+from variables import *
 from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL
 from keyboards import yes_no_kb, main_kb, stress_goal_kb, settings_kb, get_stress_kb
 from db import db
 import random
 from handlers.FSM import FSM_stress, FSM_settings, FSM_words
+from utils import send_stress
 
 
 def check_for_mkv2(text: str) -> str:
@@ -21,18 +23,38 @@ async def get_stress(message: types.Message, state: FSMContext):
             await state.finish()
             return
         if message.text == right_word.value or message.text.lower() == right_word.value.lower():
-            rand = random.randint(1, db.stress.get_words_len())
-            word = db.stress.get_word(rand)
+            user_id = db.users.get_by_tg(message.from_user.id)
             right = message.text == right_word.value
-            comment = ''
-            new_comment = ''
-            explain = ''
-            if right_word.comment_exists():
-                comment = f"\({right_word.comment}\)"
-            if word.comment_exists():
-                new_comment = f"\({word.comment}\)"
-            ans = ms['right'].format(word.value.lower(), new_comment, '') if right else (ms['wrong'].format(right_word.value, comment, explain, word.value.lower(), new_comment, ''))
-            await message.reply(ans, reply=False, reply_markup=get_stress_kb(word.value.lower()), parse_mode='MarkdownV2')
+            word = None
+            first_problem = False
+            if db.stress.check_problem_cnt(user_id):
+                problem_ids = db.stress.get_problem_word_ids(user_id)
+                first_problem = True
+                print('p_ids', problem_ids)
+                if len(problem_ids) != 0:
+                    problem_words.append(ProblemWords(user_id, set(problem_ids)))
+                print(problem_words)
+            if check_in_pwords(user_id):
+                if not first_problem:
+                    if right:
+                        db.stress.remove_problem_word(user_id, right_word.id)
+                    problem_words[get_pword_i(user_id)].words.remove(right_word.id)
+                print('p_words', problem_words)
+                if check_pwords_empty(user_id):
+                    problem_words.remove(ProblemWords(user_id, set()))
+                    rand = random.randint(1, db.stress.get_words_len())
+                    word = db.stress.get_word(rand)
+                    db.stress.problem_counter(user_id)
+                    print('p_words', problem_words)
+                else:
+                    word = db.stress.get_word(list(get_pword(user_id).words)[0])
+            else:
+                rand = random.randint(1, db.stress.get_words_len())
+                word = db.stress.get_word(rand)
+                db.stress.problem_counter(user_id)
+            await send_stress(message, word, right_word)
+            if not check_in_pwords(user_id) and not right:
+                db.stress.add_to_problem_words(user_id, right_word.id)
             db.stress.log_word_guess(db.users.get_by_tg(message.from_user.id), right_word.id, message.text, right)
             if db.stress.check_goal(db.users.get_by_tg(message.from_user.id)):
                 await message.reply(ms['goal_reach'], reply=False)

@@ -1,11 +1,13 @@
 from aiogram import Dispatcher, types
 from keyboards import main_kb, get_stress_kb, get_stats_p_choose_inline, words_kb, settings_kb, stress_goal_kb
-from config import commands, MAX_PROBLEM_WORDS, buttons as btns, messages as ms, SHOW_SUBSCR_AD
+from config import commands, MAX_PROBLEM_WORDS, messages as ms, SHOW_SUBSCR_AD
 import random
 from db import db
 from aiogram.dispatcher import FSMContext
 from handlers.FSM import FSM_settings, FSM_stress, FSM_words
-
+from variables import problem_words, check_in_pwords, check_pwords_empty, get_pword
+from models import ProblemWords
+from utils import send_stress
 
 async def start(message: types.Message):
     if not db.users.check_user_exists(message.from_user.id):
@@ -24,13 +26,29 @@ async def all_msgs(message: types.Message, state: FSMContext):
         await message.reply(ms['cmd_not_found'])
 
 async def stress_cmd(message: types.Message, state: FSMContext):
-    rand = random.randint(1, db.stress.get_words_len())
-    word = db.stress.get_word(rand)
-    comment = ''
-    if word.comment_exists():
-        comment = f"({word.comment})"
-    ans = ms['first_word'].format('{}', comment)
-    await message.answer(ans.format(word.value.lower()), reply_markup=get_stress_kb(word.value.lower()))
+    user_id = db.users.get_by_tg(message.from_user.id)
+    word = None
+    if db.stress.check_problem_cnt(user_id):
+        problem_ids = db.stress.get_problem_word_ids(user_id)
+        print('p_ids', problem_ids)
+        if len(problem_ids) != 0:
+            problem_words.append(ProblemWords(user_id, set(problem_ids)))
+        print(problem_ids)
+    if check_in_pwords(user_id):
+        print('p_words', problem_words)
+        if check_pwords_empty(user_id):
+            problem_words.remove(ProblemWords(user_id, set()))
+            rand = random.randint(1, db.stress.get_words_len())
+            word = db.stress.get_word(rand)
+            db.stress.problem_counter(user_id)
+        else:
+            word = db.stress.get_word(list(get_pword(user_id).words)[0])
+    else:
+        if check_pwords_empty(user_id):
+            problem_words.remove(ProblemWords(user_id, set()))
+        rand = random.randint(1, db.stress.get_words_len())
+        word = db.stress.get_word(rand)
+    await send_stress(message, word)
     async with state.proxy() as data:
         data['right_word'] = word
     await FSM_stress.word.set()

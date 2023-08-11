@@ -6,6 +6,7 @@ TEST = True
 MAX_PROBLEM_WORDS = 8
 MIN_GOAL, MAX_GOAL = 10, 20000
 SHOW_SUBSCR_AD = 5
+RANDOM_INTERVAL = 5
 
 commands = [
     ['Ударения 💬'],
