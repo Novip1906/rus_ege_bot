@@ -11,7 +11,7 @@ class FSM_gmsg(StatesGroup):
     sure = State()
 
 async def global_message_cmd(message: types.Message):
-    if message.from_user.id == 710810829:
+    if message.from_user.id in [710810829, 1719940138]:
         await message.reply("Сообщение:", reply=False)
         await FSM_gmsg.msg.set()
 

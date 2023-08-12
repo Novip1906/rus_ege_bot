@@ -8,6 +8,7 @@ class FSM_settings(StatesGroup):
     settings = State()
     sure = State()
     goal_set = State()
+    ref_link = State()
 
 class FSM_words(StatesGroup):
     word = State()

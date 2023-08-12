@@ -14,9 +14,13 @@ class Stress:
 @dataclass
 class Word:
     id: int
-    word: str
+    value: str
     correct: str
+    comment: str
     explain: str = ''
+
+    def comment_exists(self):
+        return self.comment is not None and self.comment != ''
 
 
 @dataclass

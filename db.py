@@ -162,10 +162,22 @@ class DB:
             self.cur.execute(f"SELECT * FROM users WHERE tg_id='{tg_id}'")
             return len(self.cur.fetchall()) > 0
 
-        def reg_user(self, tg_id, first_name):
+        def reg_user(self, tg_id, username, first_name):
             self.cur.execute(
-                f"INSERT INTO users (tg_id, first_name, create_datetime) VALUES ('{tg_id}', '{first_name}', '{current_datetime()}')")
+                f"INSERT INTO users (tg_id, username, first_name, create_datetime) VALUES ('{tg_id}', '{username}', '{first_name}', '{current_datetime()}')")
             self.conn.commit()
+
+        def get_username_by_tg_id(self, id):
+            self.cur.execute(f"SELECT username FROM users WHERE tg_id={id}")
+            return self.cur.fetchall()[0][0]
+
+        def set_referal(self, tg_id, ref_id):
+            self.cur.execute(f"UPDATE users SET referal='{ref_id}' WHERE tg_id={tg_id}")
+            self.conn.commit()
+
+        def get_refs_count(self, user_id):
+            self.cur.execute(f"SELECT COUNT(*) FROM users WHERE referal={user_id}")
+            return self.cur.fetchall()[0][0]
 
         def get_by_tg(self, tg_id):
             self.cur.execute(f"SELECT id FROM users WHERE tg_id='{tg_id}'")
@@ -201,12 +213,29 @@ class DB:
             self.cur.execute(f"UPDATE users SET sub_end='{end.strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
             self.conn.commit()
 
+        def add_money(self, user_id, sum):
+            self.cur.execute(f"UPDATE users SET balance=balance + {sum} WHERE id={user_id}")
+            self.conn.commit()
+
+        def remove_money(self, user_id, sum):
+            self.cur.execute(f"UPDATE users SET balance=balance - {sum} WHERE id={user_id}")
+            self.conn.commit()
+
+        def get_balance(self, user_id):
+            self.cur.execute(f"SELECT balance FROM users WHERE id={user_id}")
+            return self.cur.fetchall()[0][0]
+
         def get_sub_end(self, user_id):
             self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
             return self.cur.fetchall()[0][0]
 
         def check_sub(self, user_id) -> bool:
-            pass
+            current = datetime.now()
+            end = self.get_sub_end(user_id)
+            if end is None:
+                return False
+            end = datetime.strptime(self.get_sub_end(user_id), DB_DATETIME_FORMAT)
+            return end > current
 
     class _Words:
         def __init__(self, conn):
@@ -222,7 +251,13 @@ class DB:
             r = self.cur.fetchall()
             if len(r) == 0:
                 return None
-            return Word(r[0][0], r[0][1], r[0][2], r[0][3])
+            return Word(r[0][0], r[0][1], r[0][2], r[0][3], r[0][4])
 
+        def write_words(self, words: list):
+            self.cur.execute(f"DELETE FROM words")
+            for word in words:
+                word, correct, comment, explain = word.value, word.solution, word.comment, word.explain
+                self.cur.execute(f"INSERT INTO words (word, correct, comment, explain) VALUES ('{word}', '{correct}', '{comment}', '{explain}')")
+            self.conn.commit()
 
-db = DB('database.db')
+db = DB('/Users/philippschepnov/PycharmProjects/rus_ege_stress_bot/database.db')
