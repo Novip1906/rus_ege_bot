@@ -1,8 +1,8 @@
 from aiogram.types import ParseMode
-
+from create_bot import bot
 from keyboards import get_stress_kb, words_kb
 from models import Word, Stress
-from config import messages as ms
+from config import messages as ms, MONEY_FOR_REFERAL
 from aiogram import types
 from db import db
 
@@ -12,7 +12,7 @@ def check_for_mkv2(text: str) -> str:
         return text[:i] + "\\" + text[i:]
     return text
 
-async def send_stress(message: types.Message, word, isStress: bool, right_word=None):
+async def send_word(message: types.Message, word, isStress: bool, right_word=None):
     if right_word is None:
         comment = ''
         if word.comment_exists():
@@ -42,5 +42,9 @@ async def send_stress(message: types.Message, word, isStress: bool, right_word=N
         markup = get_stress_kb(word.value.lower()) if isStress else words_kb
         ans = ms['right'].format(value, new_comment, '') if right else (
             ms['wrong'].format(right_word.value if isStress else check_for_mkv2(right_word.correct), comment, explain, value, new_comment, sub_ad))
-        await message.reply(ans, reply=False, reply_markup=markup, parse_mode='MarkdownV2')
+        await message.answer(ans, reply_markup=markup, parse_mode='MarkdownV2')
 
+async def notify_about_ref(tg_id):
+    user_id = db.users.get_by_tg(tg_id)
+    balance = db.users.get_balance(user_id)
+    await bot.send_message(int(tg_id), ms['add_money_for_ref'].format(MONEY_FOR_REFERAL, balance), parse_mode=ParseMode.HTML)

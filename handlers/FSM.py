@@ -12,3 +12,6 @@ class FSM_settings(StatesGroup):
 
 class FSM_words(StatesGroup):
     word = State()
+
+class FSM_stress_goal(StatesGroup):
+    goal = State()

@@ -109,11 +109,11 @@ class DB:
             return len(logs)
 
         def get_words_goal(self, user_id):
-            self.cur.execute(f"SELECT words_goal FROM users WHERE id={user_id}")
+            self.cur.execute(f"SELECT stress_goal FROM users WHERE id={user_id}")
             return self.cur.fetchall()[0][0]
 
         def set_words_goal(self, user_id, goal):
-            self.cur.execute(f"UPDATE users SET words_goal={goal} WHERE id={user_id}")
+            self.cur.execute(f"UPDATE users SET stress_goal={goal} WHERE id={user_id}")
             self.conn.commit()
 
         def check_goal(self, user_id):
@@ -121,14 +121,14 @@ class DB:
             return len(logs) == db.stress.get_words_goal(user_id)
 
         def problem_counter(self, user_id):
-            self.cur.execute(f"UPDATE users SET problem_cnt=problem_cnt + 1 WHERE id={user_id}")
+            self.cur.execute(f"UPDATE users SET problem_stress_cnt=problem_stress_cnt + 1 WHERE id={user_id}")
             self.conn.commit()
 
-        def check_problem_cnt(self, user_id):
-            self.cur.execute(f"SELECT problem_cnt FROM users WHERE id={user_id}")
+        def check_problem_cnt(self, tg_id):
+            self.cur.execute(f"SELECT problem_stress_cnt FROM users WHERE tg_id={tg_id}")
             r = self.cur.fetchall()[0][0]
             if r >= RANDOM_INTERVAL:
-                self.cur.execute(f"UPDATE users SET problem_cnt=0 WHERE id={user_id}")
+                self.cur.execute(f"UPDATE users SET problem_stress_cnt=0 WHERE tg_id={tg_id}")
                 self.conn.commit()
                 return True
             return False
@@ -159,12 +159,12 @@ class DB:
             return self.cur.fetchall()
 
         def check_user_exists(self, tg_id) -> bool:
-            self.cur.execute(f"SELECT * FROM users WHERE tg_id='{tg_id}'")
+            self.cur.execute(f"SELECT * FROM users WHERE tg_id={tg_id}")
             return len(self.cur.fetchall()) > 0
 
         def reg_user(self, tg_id, username, first_name):
             self.cur.execute(
-                f"INSERT INTO users (tg_id, username, first_name, create_datetime) VALUES ('{tg_id}', '{username}', '{first_name}', '{current_datetime()}')")
+                f"INSERT INTO users (tg_id, username, first_name, create_datetime) VALUES ({tg_id}, '{username}', '{first_name}', '{current_datetime()}')")
             self.conn.commit()
 
         def get_username_by_tg_id(self, id):
@@ -175,12 +175,12 @@ class DB:
             self.cur.execute(f"UPDATE users SET referal='{ref_id}' WHERE tg_id={tg_id}")
             self.conn.commit()
 
-        def get_refs_count(self, user_id):
-            self.cur.execute(f"SELECT COUNT(*) FROM users WHERE referal={user_id}")
+        def get_refs_count(self, tg_id):
+            self.cur.execute(f"SELECT COUNT(*) FROM users WHERE referal={tg_id}")
             return self.cur.fetchall()[0][0]
 
         def get_by_tg(self, tg_id):
-            self.cur.execute(f"SELECT id FROM users WHERE tg_id='{tg_id}'")
+            self.cur.execute(f"SELECT id FROM users WHERE tg_id={tg_id}")
             return self.cur.fetchall()[0][0]
 
         def check_sub_ad(self, user_id):
@@ -257,7 +257,100 @@ class DB:
             self.cur.execute(f"DELETE FROM words")
             for word in words:
                 word, correct, comment, explain = word.value, word.solution, word.comment, word.explain
-                self.cur.execute(f"INSERT INTO words (word, correct, comment, explain) VALUES ('{word}', '{correct}', '{comment}', '{explain}')")
+                self.cur.execute(
+                    f"INSERT INTO words (word, correct, comment, explain) VALUES ('{word}', '{correct}', '{comment}', '{explain}')")
             self.conn.commit()
+
+        def problem_counter(self, user_id):
+            self.cur.execute(f"UPDATE users SET problem_words_cnt=problem_words_cnt + 1 WHERE id={user_id}")
+            self.conn.commit()
+
+        def check_problem_cnt(self, tg_id):
+            self.cur.execute(f"SELECT problem_words_cnt FROM users WHERE tg_id={tg_id}")
+            r = self.cur.fetchall()[0][0]
+            if r >= RANDOM_INTERVAL:
+                self.cur.execute(f"UPDATE users SET problem_words_cnt=0 WHERE tg_id={tg_id}")
+                self.conn.commit()
+                return True
+            return False
+
+        def add_to_problem_words(self, tg_id, word_id):
+            try:
+                self.cur.execute(f"INSERT INTO problem_words (tg_id, word_id) VALUES ({tg_id}, {word_id})")
+                self.conn.commit()
+            except Exception:
+                pass
+
+        def get_problem_word_ids(self, tg_id):
+            self.cur.execute(f"SELECT word_id FROM problem_words WHERE tg_id={tg_id}")
+            return [r[0] for r in self.cur.fetchall()]
+
+        def remove_problem_word(self, tg_id, word_id):
+            self.cur.execute(f"DELETE FROM problem_words WHERE tg_id={tg_id} AND word_id={word_id}")
+            self.conn.commit()
+
+        def log_word_guess(self, tg_id, right_word_id, word, guessed):
+            self.cur.execute(
+                f"INSERT INTO words_guess_logs (tg_id, right_word_id, word, datetime, guessed) VALUES (?, ?, ?, ?, ?)",
+                (tg_id, right_word_id, word, current_datetime(), 1 if guessed else 0))
+            self.conn.commit()
+
+        # periods:
+        # 0 - all time
+        # 1 - month
+        # 2 - today
+
+        def get_word_guess_logs_by_period(self, tg_id, period) -> list:
+            self.cur.execute(f"SELECT * FROM words_guess_logs WHERE tg_id={tg_id} AND include_in_stats=1")
+            logs = self.cur.fetchall()
+            if period == 0:
+                return logs
+            if period == 1:
+                one_month_ago = (datetime.now() - timedelta(days=30)).date()
+                return [log for log in logs if
+                        datetime.strptime(log[5], DB_DATETIME_FORMAT).date() >= one_month_ago]
+            if period == 2:
+                today = datetime.now().date()
+                return [log for log in logs if datetime.strptime(log[5], DB_DATETIME_FORMAT).date() == today]
+
+        def check_goal(self, tg_id):
+            logs = self.get_word_guess_logs_by_period(tg_id, 2)
+            return len(logs) == db.words.get_words_goal(tg_id)
+
+        def get_words_goal(self, tg_id):
+            self.cur.execute(f"SELECT words_goal FROM users WHERE tg_id={tg_id}")
+            return self.cur.fetchall()[0][0]
+
+        def get_words_count(self, tg_id, period) -> int:
+            logs = self.get_word_guess_logs_by_period(tg_id, period)
+            return len(logs)
+
+        def get_correct_perc(self, tg_id, period) -> float:
+            logs = self.get_word_guess_logs_by_period(tg_id, period)
+            right = len([log for log in logs if log[4] == 1])
+            if len(logs) == 0:
+                return 0
+            return (right / len(logs)) * 100
+
+        def get_correct(self, word_id):
+            self.cur.execute("SELECT correct FROM words WHERE id=?", (word_id,))
+            return self.cur.fetchall()[0][0]
+        def get_problem_words(self, tg_id, max_words, period):
+            logs = self.get_word_guess_logs_by_period(tg_id, period)
+            words = dict()
+            for log in logs:
+                word_id, correct = log[2], log[4] == 1
+                if correct:
+                    continue
+                if word_id in words:
+                    words[word_id] += 1
+                else:
+                    words[word_id] = 1
+            ids = sorted(words, reverse=True, key=lambda x: words[x])
+            res = [(self.get_correct(id), words[id]) for id in ids]
+            if len(ids) < max_words:
+                return res
+            return res[:max_words]  # (value, mistakes)
+
 
 db = DB('/Users/philippschepnov/PycharmProjects/rus_ege_stress_bot/database.db')
