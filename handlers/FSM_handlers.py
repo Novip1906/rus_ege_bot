@@ -1,12 +1,14 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
+
+import utils
 from models import ProblemWords
 from variables import *
-from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL
+from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL, admin_messages as ams
 from keyboards import yes_no_kb, main_kb, stress_goal_kb, get_settings_inl_kb
 from db import db
 import random
-from handlers.FSM import FSM_stress, FSM_settings, FSM_words, FSM_stress_goal
+from handlers.FSM import FSM_stress, FSM_settings, FSM_words, FSM_stress_goal, FSM_add_word
 from utils import send_word
 from aiogram.utils.deep_linking import get_start_link
 
@@ -86,7 +88,7 @@ async def yes_no_reset(message: types.Message, state: FSMContext):
     await FSM_settings.settings.set()
 
 async def stress_goal(message: types.Message, state: FSMContext):
-    sub_status = db.users.check_sub(db.users.get_by_tg(message.from_user.id))
+    sub_status = db.users.check_sub(message.from_user.id)
     if message.text == btns['back']:
         await message.answer(ms['cancel'], reply_markup=main_kb)
         await message.answer(ms['settings'], reply_markup=get_settings_inl_kb(sub_status))
@@ -151,25 +153,30 @@ async def get_word(message: types.Message, state: FSMContext):
             db.words.add_to_problem_words(message.from_user.id, last_word.id)
         db.words.log_word_guess(message.from_user.id, last_word.id, message.text, right)
         if db.words.check_goal(message.from_user.id):
-            await message.reply(ms['goal_reach'], reply=False)
+            await message.answer(ms['goal_reach'])
         async with state.proxy() as data:
             data['right_word'] = word
         await FSM_words.word.set()
 
-    # async with state.proxy() as data:
-    #     last_word = data['word']
-    #     if message.text == btns['back']:
-    #         await message.answer(ms['menu'], reply_markup=main_kb)
-    #         await state.finish()
-    #         return
-    #     rand = random.randint(1, db.words.get_words_len())
-    #     word = db.words.get_word(rand)
-    #     user_id = db.users.get_by_tg(message.from_user.id)
-    #     db.users.sub_ad_count(user_id)
-    #     #right = message.text.lower().replace('ё', 'е') == last_word.correct.lower().replace('ё', 'е')
-    #     await send_word(message, word, False, right_word=last_word)
-    #     async with state.proxy() as data:
-    #         data['word'] = word
+async def add_word(message: types.Message, state: FSMContext):
+    word = message.text
+    if word == btns['back']:
+        await message.answer(ms['main_menu'], reply_markup=main_kb)
+        await state.finish()
+        return
+    if word == '':
+        await message.answer(ms['retry'])
+        await FSM_add_word.word.set()
+        return
+    if db.words.check_word_exists(word):
+        await message.answer(ms['add_word_exists'])
+        await FSM_add_word.word.set()
+        return
+    id = db.words.add_new_word(message.from_user.id, word)
+    await message.answer(ms['add_word_to_approve'])
+    await utils.send_message_to_admin(ams['add_word'].format(id, message.from_user.id, word))
+    await FSM_add_word.word.set()
+
 
 
 def reg_fsm(dp: Dispatcher):
@@ -178,3 +185,4 @@ def reg_fsm(dp: Dispatcher):
     dp.register_message_handler(yes_no_reset, state=FSM_settings.sure)
     dp.register_message_handler(stress_goal, state=FSM_stress_goal.goal)
     dp.register_message_handler(get_word, state=FSM_words.word)
+    dp.register_message_handler(add_word, state=FSM_add_word.word)

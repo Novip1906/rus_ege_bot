@@ -45,6 +45,14 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
         await message.answer(ans, reply_markup=markup, parse_mode='MarkdownV2')
 
 async def notify_about_ref(tg_id):
-    user_id = db.users.get_by_tg(tg_id)
-    balance = db.users.get_balance(user_id)
+    balance = db.users.get_balance(tg_id)
     await bot.send_message(int(tg_id), ms['add_money_for_ref'].format(MONEY_FOR_REFERAL, balance), parse_mode=ParseMode.HTML)
+
+async def send_message_to_admin(text):
+    admins = db.admin.get_admins(1)
+    for tg_id in admins:
+        await bot.send_message(tg_id, text)
+
+async def notify_about_approve(tg_id, word):
+    balance = db.users.get_balance(tg_id)
+    await bot.send_message(tg_id, ms['add_money_for_word'].format(word, MONEY_FOR_REFERAL, balance), parse_mode=ParseMode.HTML)

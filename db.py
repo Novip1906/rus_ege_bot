@@ -18,6 +18,7 @@ class DB:
             self.stress = self._Stress(self.conn)
             self.users = self._Users(self.conn)
             self.words = self._Words(self.conn)
+            self.admin = self._Admin(self.conn)
             print("База данных подключена")
 
         except sqlite3.Error as error:
@@ -200,41 +201,42 @@ class DB:
             self.cur.execute(f"UPDATE users SET sub_ad={value} WHERE id={user_id}")
             self.conn.commit()
 
-        def add_sub(self, user_id, days: int):
-            self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
+        def add_sub(self, tg_id, days: int):
+            self.cur.execute(f"SELECT sub_end FROM users WHERE tg_id={tg_id}")
             start = datetime.now()
             res = self.cur.fetchall()[0][0]
             if res is not None:
                 start = (datetime.strptime(res, DB_DATETIME_FORMAT))
             else:
                 self.cur.execute(
-                    f"UPDATE users SET sub_start='{datetime.now().strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
+                    f"UPDATE users SET sub_start='{datetime.now().strftime(DB_DATETIME_FORMAT)}' WHERE tg_id={tg_id}")
             end = start + timedelta(days=days)
-            self.cur.execute(f"UPDATE users SET sub_end='{end.strftime(DB_DATETIME_FORMAT)}' WHERE id={user_id}")
+            self.cur.execute(f"UPDATE users SET sub_end='{end.strftime(DB_DATETIME_FORMAT)}' WHERE tg_id={tg_id}")
+            self.conn.commit()
+            return end.strftime(DB_DATETIME_FORMAT)
+
+        def add_money(self, tg_id, sum):
+            self.cur.execute(f"UPDATE users SET balance=balance + {sum} WHERE tg_id={tg_id}")
             self.conn.commit()
 
-        def add_money(self, user_id, sum):
-            self.cur.execute(f"UPDATE users SET balance=balance + {sum} WHERE id={user_id}")
+        def remove_money(self, tg_id, sum):
+            self.cur.execute(f"UPDATE users SET balance=balance - {sum} WHERE tg_id={tg_id}")
             self.conn.commit()
 
-        def remove_money(self, user_id, sum):
-            self.cur.execute(f"UPDATE users SET balance=balance - {sum} WHERE id={user_id}")
-            self.conn.commit()
-
-        def get_balance(self, user_id):
-            self.cur.execute(f"SELECT balance FROM users WHERE id={user_id}")
+        def get_balance(self, tg_id):
+            self.cur.execute(f"SELECT balance FROM users WHERE tg_id=?", (tg_id,))
             return self.cur.fetchall()[0][0]
 
-        def get_sub_end(self, user_id):
-            self.cur.execute(f"SELECT sub_end FROM users WHERE id={user_id}")
+        def get_sub_end(self, tg_id):
+            self.cur.execute(f"SELECT sub_end FROM users WHERE tg_id={tg_id}")
             return self.cur.fetchall()[0][0]
 
-        def check_sub(self, user_id) -> bool:
+        def check_sub(self, tg_id) -> bool:
             current = datetime.now()
-            end = self.get_sub_end(user_id)
+            end = self.get_sub_end(tg_id)
             if end is None:
                 return False
-            end = datetime.strptime(self.get_sub_end(user_id), DB_DATETIME_FORMAT)
+            end = datetime.strptime(self.get_sub_end(tg_id), DB_DATETIME_FORMAT)
             return end > current
 
     class _Words:
@@ -351,6 +353,53 @@ class DB:
             if len(ids) < max_words:
                 return res
             return res[:max_words]  # (value, mistakes)
+
+        def check_word_exists(self, word):
+            self.cur.execute(f"SELECT correct FROM words")
+            words = [w[0].lower() for w in self.cur.fetchall()]
+            return word.lower() in words
+
+        def add_new_word(self, tg_id, word):
+            self.cur.execute("INSERT INTO add_word_logs (tg_id, word) VALUES (?, ?)", (tg_id, word))
+            self.conn.commit()
+            self.cur.execute("SELECT id FROM add_word_logs WHERE tg_id=? AND word=?", (tg_id, word))
+            return self.cur.fetchall()[0][0]
+
+        def get_new_word(self, id):
+            self.cur.execute("SELECT word FROM add_word_logs WHERE id=?", (id,))
+            res = self.cur.fetchall()
+            if len(res) == 0:
+                return None
+            return res[0][0]
+
+        def get_new_word_tg_id(self, id):
+            self.cur.execute("SELECT tg_id FROM add_word_logs WHERE id=?", (id,))
+            res = self.cur.fetchall()
+            return res[0][0]
+        def set_new_word_approved(self, id, state):
+            self.cur.execute("UPDATE add_word_logs SET approved=? WHERE id=?", (state, id))
+            self.conn.commit()
+
+        def write_word(self, word, correct, comment, explain):
+            self.cur.execute(f"INSERT INTO words (word, correct, comment, explain) VALUES (?, ?, ?, ?)",
+                             (word, correct, comment, explain))
+            self.conn.commit()
+
+    class _Admin:
+        def __init__(self, conn):
+            self.conn = conn
+            self.cur = self.conn.cursor()
+
+        def get_adm_lvl(self, tg_id) -> int:
+            self.cur.execute(f"SELECT admin_lvl FROM users WHERE tg_id=?", (tg_id,))
+            res = self.cur.fetchall()
+            if len(res) > 0:
+                return res[0][0]
+            return None
+
+        def get_admins(self, lvl):
+            self.cur.execute("SELECT tg_id FROM users WHERE admin_lvl >= ?", (lvl,))
+            return [a[0] for a in self.cur.fetchall()]
 
 
 db = DB('/Users/philippschepnov/PycharmProjects/rus_ege_stress_bot/database.db')
