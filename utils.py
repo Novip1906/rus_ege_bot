@@ -1,6 +1,6 @@
 from aiogram.types import ParseMode
 from create_bot import bot
-from keyboards import get_stress_kb, words_kb
+from keyboards import get_stress_kb, words_kb, empty_inl
 from models import Word, Stress
 from config import messages as ms, MONEY_FOR_REFERAL
 from aiogram import types
@@ -20,7 +20,7 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
         value = word.value.lower() if isStress else word.value
         markup = get_stress_kb(word.value.lower()) if isStress else words_kb
         ans = ms['first_word'].format(value, comment)
-        await message.answer(ans, reply_markup=markup)
+        await message.answer(ans, reply_markup=markup, parse_mode=ParseMode.HTML)
     else:
         user_id = db.users.get_by_tg(message.from_user.id)
         right = message.text == right_word.value
@@ -28,21 +28,24 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
             right = message.text.lower().replace('ё', 'е') == right_word.correct.lower().replace('ё', 'е')
         comment = ''
         new_comment = ''
-        explain = 'Пояснение: 🔒\n'
+        explain = 'Пояснение: '
         sub_ad = ''
         if right_word.comment_exists():
             comment = f"\({right_word.comment}\)"
         if word.comment_exists():
             new_comment = f"\({word.comment}\)"
-        if not Stress:
-            if db.users.check_sub_ad(user_id):
+        if not isStress and not right:
+            if db.users.check_sub_ad(message.from_user.id) and not db.users.check_sub(message.from_user.id):
                 sub_ad = f'\n{ms["sub_ad"]}'
+            if db.users.check_sub(message.from_user.id):
+                explain += right_word.explain + '\n'
+            else:
+                explain += '🔒\n'
         value = word.value.lower() if isStress else word.value
-        value = check_for_mkv2(value)
         markup = get_stress_kb(word.value.lower()) if isStress else words_kb
         ans = ms['right'].format(value, new_comment, '') if right else (
-            ms['wrong'].format(right_word.value if isStress else check_for_mkv2(right_word.correct), comment, explain, value, new_comment, sub_ad))
-        await message.answer(ans, reply_markup=markup, parse_mode='MarkdownV2')
+            ms['wrong'].format(right_word.value if isStress else right_word.correct, comment, explain, value, new_comment, sub_ad))
+        await message.answer(ans, reply_markup=markup, parse_mode=ParseMode.HTML)
 
 async def notify_about_ref(tg_id):
     balance = db.users.get_balance(tg_id)
@@ -56,3 +59,6 @@ async def send_message_to_admin(text):
 async def notify_about_approve(tg_id, word):
     balance = db.users.get_balance(tg_id)
     await bot.send_message(tg_id, ms['add_money_for_word'].format(word, MONEY_FOR_REFERAL, balance), parse_mode=ParseMode.HTML)
+
+async def report_answer(tg_id, text):
+    await bot.send_message(tg_id, ms['report_answer'].format(text), parse_mode=ParseMode.HTML)

@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 import json
 import utils
-from config import buttons as btns, admin_messages as ams, MONEY_FOR_WORD
+from config import buttons as btns, admin_messages as ams, MONEY_FOR_WORD, messages as ms
 from db import db
 from create_bot import bot
 from keyboards import yes_no_kb, main_kb, admin_get_new_word_kb_word, admin_get_new_word_kb_correct, back_kb, admin_get_new_word_kb_comment
@@ -20,6 +20,9 @@ class FSM_approve_word(StatesGroup):
 
 class FSM_sql(StatesGroup):
     sql = State()
+
+class FSM_report_ans(StatesGroup):
+    ans = State()
 
 
 async def global_message_cmd(message: types.Message):
@@ -142,11 +145,43 @@ async def get_approved_explain(message: types.Message, state: FSMContext):
         await utils.notify_about_approve(tg_id, correct)
         await message.answer('Одобрено!', reply_markup=main_kb)
 
+async def report_cmd(message: types.Message, state: FSMContext):
+    if db.admin.get_adm_lvl(message.from_user.id) == 0:
+        return
+    args = message.get_args()
+    if args == '':
+        await message.answer('Вы забыли id в аргументах к команде')
+        return
+    id = args
+    if not id.isdigit():
+        await message.answer('Цифру надо.........')
+        return
+    r = db.report.get_report(id)
+    if r is None:
+        await message.reply('такого репорта нет')
+        return
+    text = r[1]
+    await message.answer(f'text: {text}\n\nВведите сообщение:', reply_markup=back_kb)
+    async with state.proxy() as data:
+        data['id'] = id
+    await FSM_report_ans.ans.set()
+
+async def get_report_ans(message: types.Message, state: FSMContext):
+    if message.text == btns['back']:
+        await message.reply(ms['cancel'], reply_markup=main_kb)
+        await state.finish()
+        return
+    async with state.proxy() as data:
+        db.report.answer_report(data['id'], message.from_user.id, message.text)
+        await utils.report_answer(message.from_user.id, message.text)
+    await state.finish()
+
 
 
 def reg_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(global_message_cmd, commands=['gmsg'])
     dp.register_message_handler(approve_word_cmd, commands=['aw'])
+    dp.register_message_handler(report_cmd, commands=['ap'])
     dp.register_message_handler(sql_cmd, commands=['sql'])
     #dp.register_message_handler(give_sub_cmd, commands=['givesub'])
     dp.register_message_handler(get_msg, state=FSM_gmsg.msg, content_types=['photo', 'text'])
@@ -156,3 +191,4 @@ def reg_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(get_approved_comment, state=FSM_approve_word.comment)
     dp.register_message_handler(get_approved_explain, state=FSM_approve_word.explain)
     dp.register_message_handler(get_sql, state=FSM_sql.sql)
+    dp.register_message_handler(get_report_ans, state=FSM_report_ans.ans)

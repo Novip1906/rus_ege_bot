@@ -5,7 +5,7 @@ from aiogram.utils.deep_linking import get_start_link
 import config
 from db import db
 from config import MAX_PROBLEM_WORDS, buttons as btns, messages as ms
-from handlers.FSM import FSM_stress_goal
+from handlers.FSM import FSM_stress_goal, FSM_words_goal
 
 vowels = ['а', 'е', 'ё', 'и', 'о', 'у', 'ы', 'э', 'ю', 'я']
 
@@ -22,7 +22,8 @@ get_ref_link_btn = KeyboardButton(btns['get_ref_link'])
 report_btn = KeyboardButton(btns['report'])
 add_word_btn = KeyboardButton(btns['add_word'])
 
-words_goal_inl_btn = InlineKeyboardButton(btns['words_goal'], callback_data='settings_stress-goal')
+stress_goal_inl_btn = InlineKeyboardButton(btns['stress_goal'], callback_data='settings_stress-goal')
+words_goal_inl_btn = InlineKeyboardButton(btns['words_goal'], callback_data='settings_words-goal')
 
 main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 main_kb.row(stress_btn, words_btn).add(profile_btn).row(report_btn, add_word_btn)
@@ -41,11 +42,14 @@ back_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(back_btn)
 
 admin_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 
+empty_kb, empty_inl = ReplyKeyboardMarkup(), InlineKeyboardMarkup()
+
 
 def get_settings_inl_kb(sub_active):
     settings_inl_kb = InlineKeyboardMarkup(resize_keyboard=True)
     if sub_active:
         settings_inl_kb.add(InlineKeyboardButton(btns['reset_stats'], callback_data='settings_reset-stats'))
+    settings_inl_kb.add(stress_goal_inl_btn)
     settings_inl_kb.add(words_goal_inl_btn)
     settings_inl_kb.add(InlineKeyboardButton(btns['back'], callback_data='profile_main'))
     return settings_inl_kb
@@ -192,6 +196,11 @@ async def settings_callback(query: types.CallbackQuery):
         await query.message.answer(ms['set_goal_input'].format(current_goal), reply_markup=stress_goal_kb,
                                    parse_mode="MarkdownV2")
         await FSM_stress_goal.goal.set()
+    elif status == 'words-goal':
+        current_goal = db.words.get_words_goal(query.from_user.id)
+        await query.message.answer(ms['set_goal_input'].format(current_goal), reply_markup=stress_goal_kb,
+                                   parse_mode="MarkdownV2")
+        await FSM_words_goal.goal.set()
     elif status == 'reset-stats':
         yes_inl = InlineKeyboardButton(btns['yes'], callback_data='reset-stats_yes')
         no_inl = InlineKeyboardButton(btns['no'], callback_data='reset-stats_no')

@@ -19,6 +19,7 @@ class DB:
             self.users = self._Users(self.conn)
             self.words = self._Words(self.conn)
             self.admin = self._Admin(self.conn)
+            self.report = self._Report(self.conn)
             print("База данных подключена")
 
         except sqlite3.Error as error:
@@ -113,8 +114,8 @@ class DB:
             self.cur.execute(f"SELECT stress_goal FROM users WHERE id={user_id}")
             return self.cur.fetchall()[0][0]
 
-        def set_words_goal(self, user_id, goal):
-            self.cur.execute(f"UPDATE users SET stress_goal={goal} WHERE id={user_id}")
+        def set_words_goal(self, tg_id, goal):
+            self.cur.execute(f"UPDATE users SET stress_goal={goal} WHERE tg_id={tg_id}")
             self.conn.commit()
 
         def check_goal(self, user_id):
@@ -184,17 +185,17 @@ class DB:
             self.cur.execute(f"SELECT id FROM users WHERE tg_id={tg_id}")
             return self.cur.fetchall()[0][0]
 
-        def check_sub_ad(self, user_id):
-            self.cur.execute(f"SELECT sub_ad FROM users WHERE id={user_id}")
+        def check_sub_ad(self, tg_id):
+            self.cur.execute(f"SELECT sub_ad FROM users WHERE tg_id={tg_id}")
             r = self.cur.fetchall()[0][0]
             if r >= SHOW_SUBSCR_AD:
-                self.cur.execute(f"UPDATE users SET sub_ad=0 WHERE id={user_id}")
+                self.cur.execute(f"UPDATE users SET sub_ad=0 WHERE tg_id={tg_id}")
                 self.conn.commit()
                 return True
             return False
 
-        def sub_ad_count(self, user_id):
-            self.cur.execute(f"UPDATE users SET sub_ad = sub_ad + 1 WHERE id={user_id}")
+        def sub_ad_count(self, tg_id):
+            self.cur.execute(f"UPDATE users SET sub_ad = sub_ad + 1 WHERE tg_id={tg_id}")
             self.conn.commit()
 
         def set_sub_ad(self, user_id, value):
@@ -383,6 +384,32 @@ class DB:
         def write_word(self, word, correct, comment, explain):
             self.cur.execute(f"INSERT INTO words (word, correct, comment, explain) VALUES (?, ?, ?, ?)",
                              (word, correct, comment, explain))
+            self.conn.commit()
+
+        def set_words_goal(self, tg_id, goal):
+            self.cur.execute(f"UPDATE users SET words_goal={goal} WHERE tg_id={tg_id}")
+            self.conn.commit()
+
+    class _Report:
+        def __init__(self, conn):
+            self.conn = conn
+            self.cur = self.conn.cursor()
+
+        def add_report(self, tg_id, text):
+            self.cur.execute("INSERT INTO reports (tg_id, text, create_datetime) VALUES (?, ?, ?)", (tg_id, text, current_datetime()))
+            self.conn.commit()
+            self.cur.execute("SELECT id FROM reports WHERE tg_id=? AND text=?", (tg_id, text))
+            return self.cur.fetchall()[0][0]
+
+        def get_report(self, id):
+            self.cur.execute("SELECT tg_id, text FROM reports WHERE id=? AND admin_tg_id IS NULL", (id,))
+            r = self.cur.fetchall()
+            if len(r) == 0:
+                return None
+            return r[0][0], r[0][1]
+
+        def answer_report(self, id, admin_tg_id, ans):
+            self.cur.execute("UPDATE reports SET admin_tg_id=?, answer=? WHERE id=?", (admin_tg_id, ans, id))
             self.conn.commit()
 
     class _Admin:

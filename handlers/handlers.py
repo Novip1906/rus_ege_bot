@@ -6,11 +6,12 @@ from config import commands, MAX_PROBLEM_WORDS, messages as ms, SHOW_SUBSCR_AD, 
 import random
 from db import db
 from aiogram.dispatcher import FSMContext
-from handlers.FSM import FSM_settings, FSM_stress, FSM_words, FSM_add_word
+from handlers.FSM import FSM_settings, FSM_stress, FSM_words, FSM_add_word, FSM_report
 from variables import problem_stress, check_in_pstress, check_pstress_empty, get_pstress, problem_words, check_pwords_empty, check_in_pwords, get_pwords
 from models import ProblemWords
 from utils import send_word, notify_about_ref
 from aiogram.utils.deep_linking import decode_payload
+import logging
 
 async def start(message: types.Message):
     ref_msg = ''
@@ -25,11 +26,14 @@ async def start(message: types.Message):
             ref_msg = f"Ваc пригласил @{db.users.get_username_by_tg_id(referal)}"
             db.users.add_money(referal, MONEY_FOR_REFERAL)
             await notify_about_ref(referal)
+            logging.info(f"[{message.from_user.id}] NEW USER")
+    logging.info(f"[{message.from_user.id}] /start")
     await message.reply(ms['welcome'].format(message.from_user.first_name, db.stress.get_words_goal(db.users.get_by_tg(message.from_user.id)), ref_msg), reply_markup=main_kb, reply=False)
 
 async def all_msgs(message: types.Message, state: FSMContext):
     text = message.text
     found = False
+    logging.info(f"[{message.from_user.id}] {text}")
     for i in range(len(commands)):
         if text in commands[i]:
             await commands_func[i](message, state)
@@ -42,12 +46,9 @@ async def stress_cmd(message: types.Message, state: FSMContext):
     word = None
     if db.stress.check_problem_cnt(message.from_user.id):
         problem_ids = db.stress.get_problem_word_ids(user_id)
-        print('p_ids', problem_ids)
         if len(problem_ids) != 0:
             problem_stress.append(ProblemWords(user_id, set(problem_ids)))
-        print(problem_ids)
     if check_in_pstress(user_id):
-        print('p_words', problem_stress)
         if check_pstress_empty():
             problem_stress.remove(ProblemWords(user_id, set()))
             rand = random.randint(1, db.stress.get_words_len())
@@ -71,12 +72,9 @@ async def words_cmd(message: types.Message, state: FSMContext):
     word = None
     if db.words.check_problem_cnt(message.from_user.id):
         problem_ids = db.words.get_problem_word_ids(message.from_user.id)
-        print('p_ids', problem_ids)
         if len(problem_ids) != 0:
             problem_words.append(ProblemWords(user_id, set(problem_ids)))
-        print(problem_ids)
     if check_in_pwords(user_id):
-        print('p_words', problem_stress)
         if check_pwords_empty():
             problem_words.remove(ProblemWords(user_id, set()))
             rand = random.randint(1, db.words.get_words_len())
@@ -99,13 +97,15 @@ async def profile_cmd(message: types.Message, state: FSMContext):
     await show_profile(message, False, message.from_user.id)
 
 async def report_cmd(message: types.Message, state: FSMContext):
-    pass
+    await message.answer(ms['report_info'], reply_markup=back_kb)
+    await FSM_report.text.set()
 
 async def add_word_cmd(message: types.Message, state: FSMContext):
     await message.answer(ms['add_word_info'], reply_markup=back_kb, parse_mode=ParseMode.HTML)
     await FSM_add_word.word.set()
 
 async def admin(message: types.Message):
+    logging.info(f"[{message.from_user.id}] /admin")
     admin_lvl = db.get_adm_lvl(message.from_user.id)
     if admin_lvl > 0:
         await message.answer(f'Успешный вход. Уровень: {admin_lvl}')

@@ -4,6 +4,10 @@ from handlers.handlers import reg_handlers
 from handlers.FSM_handlers import reg_fsm
 from keyboards import reg_inline_callbacks
 from handlers.admin_handlers import reg_admin_handlers
+import logging
+
+logging.basicConfig(level=logging.INFO, filename="logs.log",
+                    format="%(asctime)s %(levelname)s %(message)s")
 
 reg_admin_handlers(dp)
 reg_handlers(dp)

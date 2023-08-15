@@ -16,5 +16,12 @@ class FSM_words(StatesGroup):
 class FSM_stress_goal(StatesGroup):
     goal = State()
 
+class FSM_words_goal(StatesGroup):
+    goal = State()
+
 class FSM_add_word(StatesGroup):
     word = State()
+
+class FSM_report(StatesGroup):
+    text = State()
+    yes_no = State()
