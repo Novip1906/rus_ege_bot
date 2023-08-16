@@ -44,6 +44,10 @@ admin_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 
 empty_kb, empty_inl = ReplyKeyboardMarkup(), InlineKeyboardMarkup()
 
+channel_link_kb = InlineKeyboardMarkup().add(InlineKeyboardButton('Наш канал', url=config.sub_channel_link))
+
+check_for_sub_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(btns['check']))
+
 
 def get_settings_inl_kb(sub_active):
     settings_inl_kb = InlineKeyboardMarkup(resize_keyboard=True)

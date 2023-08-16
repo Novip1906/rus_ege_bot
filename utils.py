@@ -1,10 +1,13 @@
 from aiogram.types import ParseMode
+
+import config
 from create_bot import bot
-from keyboards import get_stress_kb, words_kb, empty_inl
+from keyboards import get_stress_kb, words_kb, empty_inl, channel_link_kb, check_for_sub_kb
 from models import Word, Stress
 from config import messages as ms, MONEY_FOR_REFERAL
 from aiogram import types
 from db import db
+from handlers.FSM import FSM_sub_channel
 
 def check_for_mkv2(text: str) -> str:
     if '_' in text:
@@ -62,3 +65,7 @@ async def notify_about_approve(tg_id, word):
 
 async def report_answer(tg_id, text):
     await bot.send_message(tg_id, ms['report_answer'].format(text), parse_mode=ParseMode.HTML)
+
+async def check_sub_channel(tg_id):
+    member = await bot.get_chat_member(chat_id=config.sub_channel, user_id=tg_id)
+    return member['status'] != 'left'

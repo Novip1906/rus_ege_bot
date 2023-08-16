@@ -160,10 +160,11 @@ async def report_cmd(message: types.Message, state: FSMContext):
     if r is None:
         await message.reply('такого репорта нет')
         return
-    text = r[1]
+    tg_id, text = r[0], r[1]
     await message.answer(f'text: {text}\n\nВведите сообщение:', reply_markup=back_kb)
     async with state.proxy() as data:
         data['id'] = id
+        data['tg_id'] = tg_id
     await FSM_report_ans.ans.set()
 
 async def get_report_ans(message: types.Message, state: FSMContext):
@@ -173,7 +174,8 @@ async def get_report_ans(message: types.Message, state: FSMContext):
         return
     async with state.proxy() as data:
         db.report.answer_report(data['id'], message.from_user.id, message.text)
-        await utils.report_answer(message.from_user.id, message.text)
+        await utils.report_answer(data['tg_id'], message.text)
+        await message.answer('Отправлен!', reply_markup=main_kb)
     await state.finish()
 
 
@@ -181,7 +183,7 @@ async def get_report_ans(message: types.Message, state: FSMContext):
 def reg_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(global_message_cmd, commands=['gmsg'])
     dp.register_message_handler(approve_word_cmd, commands=['aw'])
-    dp.register_message_handler(report_cmd, commands=['ap'])
+    dp.register_message_handler(report_cmd, commands=['ar'])
     dp.register_message_handler(sql_cmd, commands=['sql'])
     #dp.register_message_handler(give_sub_cmd, commands=['givesub'])
     dp.register_message_handler(get_msg, state=FSM_gmsg.msg, content_types=['photo', 'text'])

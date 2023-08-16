@@ -25,3 +25,6 @@ class FSM_add_word(StatesGroup):
 class FSM_report(StatesGroup):
     text = State()
     yes_no = State()
+
+class FSM_sub_channel(StatesGroup):
+    check = State()

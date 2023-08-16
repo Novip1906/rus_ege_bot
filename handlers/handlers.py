@@ -1,27 +1,38 @@
 from aiogram import Dispatcher, types
 from aiogram.types import ParseMode
 
-from keyboards import main_kb, get_profile_inline, stress_goal_kb, show_profile, back_kb
+import utils
+from create_bot import bot
+from keyboards import main_kb, get_profile_inline, stress_goal_kb, show_profile, back_kb, channel_link_kb, \
+    check_for_sub_kb
 from config import commands, MAX_PROBLEM_WORDS, messages as ms, SHOW_SUBSCR_AD, MONEY_FOR_REFERAL
 import random
 from db import db
 from aiogram.dispatcher import FSMContext
-from handlers.FSM import FSM_settings, FSM_stress, FSM_words, FSM_add_word, FSM_report
+from handlers.FSM import FSM_settings, FSM_stress, FSM_words, FSM_add_word, FSM_report, FSM_sub_channel
 from variables import problem_stress, check_in_pstress, check_pstress_empty, get_pstress, problem_words, check_pwords_empty, check_in_pwords, get_pwords
 from models import ProblemWords
 from utils import send_word, notify_about_ref
 from aiogram.utils.deep_linking import decode_payload
 import logging
 
-async def start(message: types.Message):
+async def start(message: types.Message, state: FSMContext):
     ref_msg = ''
     if not db.users.check_user_exists(message.from_user.id):
+        check = await utils.check_sub_channel(message.from_user.id)
+        if not check:
+            await bot.send_message(message.from_user.id, text=ms['join_channel'], reply_markup=channel_link_kb)
+            await bot.send_message(message.from_user.id, text=ms['join_channel2'], reply_markup=check_for_sub_kb)
+            args = message.get_args()
+            async with state.proxy() as data:
+                data['args'] = args
+            await FSM_sub_channel.check.set()
+            return
         db.users.reg_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
         db.users.set_sub_ad(db.users.get_by_tg(message.from_user.id), SHOW_SUBSCR_AD)
         args = message.get_args()
         if args != '':
             referal = decode_payload(args)
-            print(referal)
             db.users.set_referal(message.from_user.id, referal)
             ref_msg = f"Ваc пригласил @{db.users.get_username_by_tg_id(referal)}"
             db.users.add_money(referal, MONEY_FOR_REFERAL)

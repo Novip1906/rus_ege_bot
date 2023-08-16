@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 
@@ -9,10 +11,9 @@ from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL, admin_me
 from keyboards import yes_no_kb, main_kb, stress_goal_kb, get_settings_inl_kb
 from db import db
 import random
-from handlers.FSM import FSM_stress, FSM_settings, FSM_words, FSM_stress_goal, FSM_add_word, FSM_words_goal, FSM_report
+from handlers.FSM import FSM_stress, FSM_settings, FSM_words, FSM_stress_goal, FSM_add_word, FSM_words_goal, FSM_report, FSM_sub_channel
 from utils import send_word
-from aiogram.utils.deep_linking import get_start_link
-
+from aiogram.utils.deep_linking import get_start_link, decode_payload
 
 
 async def get_stress(message: types.Message, state: FSMContext):
@@ -212,6 +213,26 @@ async def yes_no_report(message: types.Message, state: FSMContext):
         await message.answer(ms['cancel'], reply=False, reply_markup=main_kb)
     await state.finish()
 
+async def check_sub_channel(message: types.Message, state: FSMContext):
+    if not (await utils.check_sub_channel(message.from_user.id)):
+        await message.answer(ms['not_subscribed'])
+        await FSM_sub_channel.check.set()
+        return
+    db.users.reg_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
+    db.users.set_sub_ad(db.users.get_by_tg(message.from_user.id), config.SHOW_SUBSCR_AD)
+    async with state.proxy() as data:
+        args = data['args']
+        ref_msg = ''
+        if args != '':
+            referal = decode_payload(args)
+            db.users.set_referal(message.from_user.id, referal)
+            ref_msg = f"Ваc пригласил @{db.users.get_username_by_tg_id(referal)}"
+            db.users.add_money(referal, config.MONEY_FOR_REFERAL)
+            await utils.notify_about_ref(referal)
+            logging.info(f"[{message.from_user.id}] NEW USER")
+        await message.answer(ms['welcome'].format(message.from_user.first_name,
+                                                 db.stress.get_words_goal(db.users.get_by_tg(message.from_user.id)),
+                                                 ref_msg), reply_markup=main_kb)
 
 
 def reg_fsm(dp: Dispatcher):
@@ -224,3 +245,4 @@ def reg_fsm(dp: Dispatcher):
     dp.register_message_handler(add_word, state=FSM_add_word.word)
     dp.register_message_handler(get_report, state=FSM_report.text)
     dp.register_message_handler(yes_no_report, state=FSM_report.yes_no)
+    dp.register_message_handler(check_sub_channel, state=FSM_sub_channel.check)
