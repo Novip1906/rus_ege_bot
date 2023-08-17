@@ -246,6 +246,31 @@ class DB:
             end = datetime.strptime(self.get_sub_end(tg_id), DB_DATETIME_FORMAT)
             return end > current
 
+        def check_ban(self, tg_id):
+            self.cur.execute("SELECT ban FROM users WHERE tg_id=?", (tg_id,))
+            ban = self.cur.fetchall()[0][0]
+            if ban is None:
+                return False
+            time = datetime.strptime(ban, DB_DATETIME_FORMAT)
+            return time > datetime.now()
+
+        def ban(self, tg_id, days):
+            self.cur.execute("SELECT id FROM users WHERE tg_id=?", (tg_id,))
+            if len(self.cur.fetchall()) == 0:
+                return False
+            end = datetime.now() + timedelta(days=days)
+            self.cur.execute("UPDATE users SET ban=? WHERE tg_id=?", (end.strftime(DB_DATETIME_FORMAT), tg_id))
+            self.conn.commit()
+            return True
+
+        def unban(self, tg_id):
+            self.cur.execute("SELECT id FROM users WHERE tg_id=?", (tg_id,))
+            if len(self.cur.fetchall()) == 0:
+                return False
+            self.cur.execute("UPDATE users SET ban=NULL WHERE tg_id=?", (tg_id,))
+            self.conn.commit()
+            return True
+
     class _Words:
         def __init__(self, conn):
             self.conn = conn
@@ -366,18 +391,26 @@ class DB:
             words = [w[0].lower() for w in self.cur.fetchall()]
             return word.lower() in words
 
-        def add_new_word(self, tg_id, word):
-            self.cur.execute("INSERT INTO add_word_logs (tg_id, word) VALUES (?, ?)", (tg_id, word))
+        def check_new_word_exists(self, word):
+            self.cur.execute(f"SELECT correct FROM add_word_logs")
+            r = self.cur.fetchall()
+            words = [w[0].lower() for w in r if w[0] is not None]
+            return word.lower() in words
+
+        def add_new_word(self, tg_id, word, correct, comment, explain):
+            self.cur.execute("INSERT INTO add_word_logs (tg_id, word, correct, comment, explain) VALUES (?, ?, ?, ?, ?)", (tg_id, word, correct, comment, explain))
             self.conn.commit()
             self.cur.execute("SELECT id FROM add_word_logs WHERE tg_id=? AND word=?", (tg_id, word))
-            return self.cur.fetchall()[0][0]
+            r = self.cur.fetchall()
+            return r[0][len(r[0]) - 1]
 
         def get_new_word(self, id):
-            self.cur.execute("SELECT word FROM add_word_logs WHERE id=?", (id,))
+            self.cur.execute("SELECT * FROM add_word_logs WHERE id=?", (id,))
             res = self.cur.fetchall()
             if len(res) == 0:
                 return None
-            return res[0][0]
+            r = res[0]
+            return r[3], r[2], r[4], r[5]
 
         def get_new_word_tg_id(self, id):
             self.cur.execute("SELECT tg_id FROM add_word_logs WHERE id=?", (id,))

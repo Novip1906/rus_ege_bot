@@ -8,7 +8,7 @@ import utils
 from models import ProblemWords
 from variables import *
 from config import buttons as btns, messages as ms, MIN_GOAL, MAX_GOAL, admin_messages as ams, REPORT_MAX_LEN
-from keyboards import yes_no_kb, main_kb, stress_goal_kb, get_settings_inl_kb
+from keyboards import yes_no_kb, main_kb, stress_goal_kb, get_settings_inl_kb, get_new_word_kb_comment, back_kb
 from db import db
 import random
 from handlers.FSM import FSM_stress, FSM_settings, FSM_words, FSM_stress_goal, FSM_add_word, FSM_words_goal, FSM_report, FSM_sub_channel
@@ -29,12 +29,13 @@ async def get_stress(message: types.Message, state: FSMContext):
             right = message.text == right_word.value
             word = None
             first_problem = False
-            if db.stress.check_problem_cnt(message.from_user.id):
+            sub = db.users.check_sub(message.from_user.id)
+            if db.stress.check_problem_cnt(message.from_user.id) and sub:
                 problem_ids = db.stress.get_problem_word_ids(user_id)
                 first_problem = True
                 if len(problem_ids) != 0:
                     problem_stress.append(ProblemWords(user_id, set(problem_ids)))
-            if check_in_pstress(user_id):
+            if check_in_pstress(user_id) and sub:
                 if not first_problem:
                     if right:
                         db.stress.remove_problem_word(user_id, right_word.id)
@@ -139,14 +140,15 @@ async def get_word(message: types.Message, state: FSMContext):
         right = message.text.lower().replace('ё', 'е') == last_word.correct.lower().replace('ё', 'е')
         word = None
         first_problem = False
+        sub = db.users.check_sub(message.from_user.id)
         if not right:
             db.users.sub_ad_count(message.from_user.id)
-        if db.words.check_problem_cnt(message.from_user.id):
+        if db.words.check_problem_cnt(message.from_user.id) and sub:
             problem_ids = db.words.get_problem_word_ids(message.from_user.id)
             first_problem = True
             if len(problem_ids) != 0:
                 problem_words.append(ProblemWords(user_id, set(problem_ids)))
-        if check_in_pwords(user_id):
+        if check_in_pwords(user_id) and sub:
             if not first_problem:
                 if right:
                     db.words.remove_problem_word(message.from_user.id, last_word.id)
@@ -172,7 +174,30 @@ async def get_word(message: types.Message, state: FSMContext):
             data['right_word'] = word
         await FSM_words.word.set()
 
-async def add_word(message: types.Message, state: FSMContext):
+async def add_word_correct(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
+    word = message.text
+    if word == btns['back']:
+        await message.answer(ms['main_menu'], reply_markup=main_kb)
+        await state.finish()
+        return
+    if word == '':
+        await message.answer(ms['retry'])
+        await FSM_add_word.correct.set()
+        return
+    if db.words.check_word_exists(word):
+        await message.answer(ms['add_word_exists'])
+        await FSM_add_word.correct.set()
+        return
+    if db.words.check_new_word_exists(word):
+        await message.answer(ms['add_word_new_exists'])
+        await FSM_add_word.correct.set()
+    await message.answer(ms['add_word_with_space'])
+    async with state.proxy() as data:
+        data['correct'] = message.text
+    await FSM_add_word.word.set()
+
+async def add_word_word(message: types.Message, state: FSMContext):
     logging.info(f'[{message.from_user.id}] {message.text}')
     word = message.text
     if word == btns['back']:
@@ -183,14 +208,60 @@ async def add_word(message: types.Message, state: FSMContext):
         await message.answer(ms['retry'])
         await FSM_add_word.word.set()
         return
-    if db.words.check_word_exists(word):
-        await message.answer(ms['add_word_exists'])
-        await FSM_add_word.word.set()
+    await message.answer(ms['add_word_comment'], reply_markup=get_new_word_kb_comment())
+    async with state.proxy() as data:
+        data['word'] = message.text
+    await FSM_add_word.comment.set()
+
+async def add_word_comment(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
+    word = message.text
+    if word == btns['back']:
+        await message.answer(ms['main_menu'], reply_markup=main_kb)
+        await state.finish()
         return
-    id = db.words.add_new_word(message.from_user.id, word)
+    if word == btns['skip']:
+        async with state.proxy() as data:
+            data['comment'] = ''
+        await message.answer(ms['add_word_explain'], reply_markup=back_kb)
+        await FSM_add_word.explain.set()
+        return
+    if word == '':
+        await message.answer(ms['retry'])
+        await FSM_add_word.comment.set()
+        return
+    if len(word) > config.COMMENT_MAX_LEN:
+        await message.answer(ms['add_word_comment_max_len'])
+        await FSM_add_word.comment.set()
+        return
+    await message.answer(ms['add_word_explain'], reply_markup=back_kb)
+    async with state.proxy() as data:
+        data['comment'] = message.text
+    await FSM_add_word.explain.set()
+
+async def add_word_explain(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
+    word = message.text
+    if word == btns['back']:
+        await message.answer(ms['main_menu'], reply_markup=main_kb)
+        await state.finish()
+        return
+    if word == '':
+        await message.answer(ms['retry'])
+        await FSM_add_word.explain.set()
+        return
+    if len(word) > config.EXPLAIN_MAX_LEN:
+        await message.answer(ms['add_word_explain_max_len'])
+        await FSM_add_word.explain.set()
+        return
+    async with state.proxy() as data:
+        id = db.words.add_new_word(message.from_user.id, data['word'], data['correct'], data['comment'], message.text)
+        await utils.send_message_to_admin(ams['add_word'].format(id, message.from_user.id, data['correct']))
     await message.answer(ms['add_word_to_approve'])
-    await utils.send_message_to_admin(ams['add_word'].format(id, message.from_user.id, word))
-    await FSM_add_word.word.set()
+    await FSM_add_word.correct.set()
+
+
+
 
 async def get_report(message: types.Message, state: FSMContext):
     logging.info(f'[{message.from_user.id}] {message.text}')
@@ -248,7 +319,10 @@ def reg_fsm(dp: Dispatcher):
     dp.register_message_handler(stress_goal, state=FSM_stress_goal.goal)
     dp.register_message_handler(words_goal, state=FSM_words_goal.goal)
     dp.register_message_handler(get_word, state=FSM_words.word)
-    dp.register_message_handler(add_word, state=FSM_add_word.word)
+    dp.register_message_handler(add_word_correct, state=FSM_add_word.correct)
+    dp.register_message_handler(add_word_word, state=FSM_add_word.word)
+    dp.register_message_handler(add_word_comment, state=FSM_add_word.comment)
+    dp.register_message_handler(add_word_explain, state=FSM_add_word.explain)
     dp.register_message_handler(get_report, state=FSM_report.text)
     dp.register_message_handler(yes_no_report, state=FSM_report.yes_no)
     dp.register_message_handler(check_sub_channel, state=FSM_sub_channel.check)

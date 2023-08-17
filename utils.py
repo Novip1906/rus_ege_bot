@@ -59,11 +59,14 @@ async def notify_about_ref(tg_id):
 async def send_message_to_admin(text):
     admins = db.admin.get_admins(1)
     for tg_id in admins:
-        await bot.send_message(tg_id, text)
+        try:
+            await bot.send_message(tg_id, text)
+        except:
+            pass
 
 async def notify_about_approve(tg_id, word):
     balance = db.users.get_balance(tg_id)
-    await bot.send_message(tg_id, ms['add_money_for_word'].format(word, MONEY_FOR_REFERAL, balance), parse_mode=ParseMode.HTML)
+    await bot.send_message(tg_id, ms['add_money_for_word'].format(word, config.MONEY_FOR_WORD, balance), parse_mode=ParseMode.HTML)
 
 async def report_answer(tg_id, text):
     await bot.send_message(tg_id, ms['report_answer'].format(text), parse_mode=ParseMode.HTML)

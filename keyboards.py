@@ -219,13 +219,24 @@ async def reset_stats(query: types.CallbackQuery):
     else:
         await query.message.edit_text(ms['settings'], reply_markup=get_settings_inl_kb(True))
 
+def admin_get_new_word_kb(text: str, reject: bool = False, skip: bool = False):
+    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    if text != '':
+        kb.add(KeyboardButton(text))
+    if reject:
+        kb.add(KeyboardButton(btns['reject']))
+    if skip:
+        kb.add(KeyboardButton(btns['skip']))
+    kb.add(KeyboardButton(btns['back']))
+    return kb
+
 def admin_get_new_word_kb_word() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(btns['reject'])).add(back_btn)
 
 def admin_get_new_word_kb_correct(correct: str) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(correct)).add(back_btn)
+    return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(correct)).add(KeyboardButton(btns['reject'])).add(back_btn)
 
-def admin_get_new_word_kb_comment() -> ReplyKeyboardMarkup:
+def get_new_word_kb_comment() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(btns['skip'])).add(back_btn)
 
 def reg_inline_callbacks(dp: Dispatcher):

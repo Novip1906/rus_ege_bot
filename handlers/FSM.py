@@ -20,7 +20,10 @@ class FSM_words_goal(StatesGroup):
     goal = State()
 
 class FSM_add_word(StatesGroup):
+    correct = State()
     word = State()
+    comment = State()
+    explain = State()
 
 class FSM_report(StatesGroup):
     text = State()

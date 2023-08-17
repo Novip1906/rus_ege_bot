@@ -111,13 +111,19 @@ async def profile_cmd(message: types.Message, state: FSMContext):
 
 async def report_cmd(message: types.Message, state: FSMContext):
     logging.info(f'[{message.from_user.id}] {message.text}')
+    if db.users.check_ban(message.from_user.id):
+        await message.answer(ms['banned'])
+        return
     await message.answer(ms['report_info'], reply_markup=back_kb)
     await FSM_report.text.set()
 
 async def add_word_cmd(message: types.Message, state: FSMContext):
     logging.info(f'[{message.from_user.id}] {message.text}')
+    if db.users.check_ban(message.from_user.id):
+        await message.answer(ms['banned'])
+        return
     await message.answer(ms['add_word_info'], reply_markup=back_kb, parse_mode=ParseMode.HTML)
-    await FSM_add_word.word.set()
+    await FSM_add_word.correct.set()
 
 async def admin(message: types.Message):
     logging.info(f"[{message.from_user.id}] /admin")
@@ -125,7 +131,7 @@ async def admin(message: types.Message):
     if admin_lvl > 0:
         await message.answer(f'Успешный вход. Уровень: {admin_lvl}')
 
-async def back_cmd(message: types.Message):
+async def back_cmd(message: types.Message, state):
     logging.info(f'[{message.from_user.id}] {message.text}')
     await message.answer(ms['menu'], reply_markup=main_kb)
 
