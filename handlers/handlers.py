@@ -30,6 +30,7 @@ async def start(message: types.Message, state: FSMContext):
             return
         db.users.reg_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
         db.users.set_sub_ad(db.users.get_by_tg(message.from_user.id), SHOW_SUBSCR_AD)
+        db.users.add_sub(message.from_user.id, 2)
         args = message.get_args()
         if args != '':
             referal = decode_payload(args)
@@ -105,13 +106,16 @@ async def words_cmd(message: types.Message, state: FSMContext):
 
 
 async def profile_cmd(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     await show_profile(message, False, message.from_user.id)
 
 async def report_cmd(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     await message.answer(ms['report_info'], reply_markup=back_kb)
     await FSM_report.text.set()
 
 async def add_word_cmd(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     await message.answer(ms['add_word_info'], reply_markup=back_kb, parse_mode=ParseMode.HTML)
     await FSM_add_word.word.set()
 
@@ -121,8 +125,11 @@ async def admin(message: types.Message):
     if admin_lvl > 0:
         await message.answer(f'Успешный вход. Уровень: {admin_lvl}')
 
+async def back_cmd(message: types.Message):
+    logging.info(f'[{message.from_user.id}] {message.text}')
+    await message.answer(ms['menu'], reply_markup=main_kb)
 
-commands_func = [stress_cmd, words_cmd, profile_cmd, report_cmd, add_word_cmd]
+commands_func = [stress_cmd, words_cmd, profile_cmd, report_cmd, add_word_cmd, back_cmd]
 
 
 def reg_handlers(dp: Dispatcher):

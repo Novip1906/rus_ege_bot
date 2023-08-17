@@ -1,3 +1,5 @@
+import random
+
 from aiogram.types import ParseMode
 
 import config
@@ -22,7 +24,7 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
             comment = f"({word.comment})"
         value = word.value.lower() if isStress else word.value
         markup = get_stress_kb(word.value.lower()) if isStress else words_kb
-        ans = ms['first_word'].format(value, comment)
+        ans = ms['first_word'].format(get_random_emoji(), value, comment)
         await message.answer(ans, reply_markup=markup, parse_mode=ParseMode.HTML)
     else:
         user_id = db.users.get_by_tg(message.from_user.id)
@@ -31,12 +33,12 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
             right = message.text.lower().replace('ё', 'е') == right_word.correct.lower().replace('ё', 'е')
         comment = ''
         new_comment = ''
-        explain = 'Пояснение: '
+        explain = 'Пояснение: ' if not isStress else ''
         sub_ad = ''
         if right_word.comment_exists():
-            comment = f"\({right_word.comment}\)"
+            comment = f"({right_word.comment})"
         if word.comment_exists():
-            new_comment = f"\({word.comment}\)"
+            new_comment = f"({word.comment})"
         if not isStress and not right:
             if db.users.check_sub_ad(message.from_user.id) and not db.users.check_sub(message.from_user.id):
                 sub_ad = f'\n{ms["sub_ad"]}'
@@ -69,3 +71,8 @@ async def report_answer(tg_id, text):
 async def check_sub_channel(tg_id):
     member = await bot.get_chat_member(chat_id=config.sub_channel, user_id=tg_id)
     return member['status'] != 'left'
+
+def get_random_emoji() -> str:
+    rand = random.randint(0, len(config.emoji) - 1)
+    print(rand)
+    return config.emoji[rand]

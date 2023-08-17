@@ -184,7 +184,7 @@ async def show_profile(message: types.Message, edit: bool, tg_id):
     user_id = db.users.get_by_tg(tg_id)
     balance = db.users.get_balance(tg_id)
     sub_status = db.users.check_sub(tg_id)
-    referals = db.users.get_refs_count(message.from_user.id)
+    referals = db.users.get_refs_count(tg_id)
     sub_ans = f'<b>Активна</b> ✅ (до {db.users.get_sub_end(tg_id)})' if sub_status else '<b>Неактивна</b> ❌'
     if edit:
         await message.edit_text(ms['profile'].format(balance, sub_ans, referals), parse_mode=ParseMode.HTML, reply_markup=get_profile_inline(sub_status))

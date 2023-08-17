@@ -17,6 +17,7 @@ from aiogram.utils.deep_linking import get_start_link, decode_payload
 
 
 async def get_stress(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     async with state.proxy() as data:
         right_word = data['right_word']
         if message.text == btns['back']:
@@ -127,6 +128,7 @@ async def words_goal(message: types.Message, state: FSMContext):
 
 
 async def get_word(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     async with state.proxy() as data:
         last_word = data['right_word']
         if message.text == btns['back']:
@@ -171,6 +173,7 @@ async def get_word(message: types.Message, state: FSMContext):
         await FSM_words.word.set()
 
 async def add_word(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     word = message.text
     if word == btns['back']:
         await message.answer(ms['main_menu'], reply_markup=main_kb)
@@ -190,6 +193,7 @@ async def add_word(message: types.Message, state: FSMContext):
     await FSM_add_word.word.set()
 
 async def get_report(message: types.Message, state: FSMContext):
+    logging.info(f'[{message.from_user.id}] {message.text}')
     if message.text == btns['back']:
         await message.answer(ms['cancel'], reply_markup=main_kb)
         await state.finish()
@@ -208,7 +212,7 @@ async def yes_no_report(message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             id = db.report.add_report(message.from_user.id, data['text'])
             await utils.send_message_to_admin(ams['report'].format(id, message.from_user.id, data['text']))
-        await message.answer(ms['report_sent'], reply=False, reply_markup=main_kb)
+        await message.answer(ms['report_sent'].format(utils.get_random_emoji()), reply=False, reply_markup=main_kb)
     else:
         await message.answer(ms['cancel'], reply=False, reply_markup=main_kb)
     await state.finish()
@@ -220,6 +224,7 @@ async def check_sub_channel(message: types.Message, state: FSMContext):
         return
     db.users.reg_user(message.from_user.id, message.from_user.username, message.from_user.first_name)
     db.users.set_sub_ad(db.users.get_by_tg(message.from_user.id), config.SHOW_SUBSCR_AD)
+    db.users.add_sub(message.from_user.id, 2)
     async with state.proxy() as data:
         args = data['args']
         ref_msg = ''
@@ -233,6 +238,7 @@ async def check_sub_channel(message: types.Message, state: FSMContext):
         await message.answer(ms['welcome'].format(message.from_user.first_name,
                                                  db.stress.get_words_goal(db.users.get_by_tg(message.from_user.id)),
                                                  ref_msg), reply_markup=main_kb)
+    await state.finish()
 
 
 def reg_fsm(dp: Dispatcher):

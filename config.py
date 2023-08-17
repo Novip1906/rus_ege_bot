@@ -3,12 +3,14 @@ TG_TOKEN = '6427428832:AAELKb7ZIQ4OgVl01oW5mMEv_Xz3y3I7BDw'
 TG_TOKEN_TEST = '6368744766:AAGH5KU4Q-T8_7Y4d8uevMKQ6iA7KJJFXS8'
 TEST = True
 
+DB_PATH = '/Users/philippschepnov/PycharmProjects/rus_ege_stress_bot/database.db'
+
 MAX_PROBLEM_WORDS = 5
 MIN_GOAL, MAX_GOAL = 10, 20000
 SHOW_SUBSCR_AD = 5
 RANDOM_INTERVAL = 10
 
-MONEY_FOR_REFERAL = 10
+MONEY_FOR_REFERAL = 8
 MONEY_FOR_WORD = 5
 
 REPORT_MAX_LEN = 150
@@ -17,6 +19,8 @@ sub_channel = '-1001917694850'
 sub_channel_link = 'https://t.me/ege_stress'
 
 PRICES = [30, 60, 90], ['1 месяц', '2 месяца', '3 месяца'], [59, 99, 149]
+
+emoji = '😃😄😁😆☺️😊🙂😉😌'
 
 buttons = {
     'stress': 'Ударения 💬',
@@ -48,7 +52,8 @@ commands = [
     [buttons['words']],
     [buttons['profile']],
     [buttons['report']],
-    [buttons['add_word']]
+    [buttons['add_word']],
+    [buttons['back']]
 ]
 
 messages = {
@@ -58,8 +63,8 @@ messages = {
     'welcome': 'Добро пожаловать, {}! 👋\nВаша цель: {} слов\n\n{}',
     'cmd_not_found': 'Команда не найдена ❌',
     'settings': 'Настройки ⚙️',
-    'menu': 'Главное меню',
-    'first_word': 'Начнем 😊\n\n<b>{}</b> {}',
+    'menu': 'Главное меню 🏠',
+    'first_word': 'Начнем {}\n\n<b>{}</b> {}',
     'right': 'Правильно ✅\n\nСледующее слово: <b>{}</b> {}\n{}',
     'wrong': 'Ошибка ❌\nПравильно: {} {}\n{}\n➡️Следующее слово: <b>{}</b> {}\n{}',
     'retry': 'Попробуйте снова 🔄',
@@ -119,7 +124,7 @@ messages = {
     'report_info': """💬Напишите ваш вопрос, предложение или жалобу.""",
     'report_answer': '❗<b>Ответ на репорт</b>:\n\n{}',
     'report_max_len': f'💡Максимальная длина: {REPORT_MAX_LEN}',
-    'report_sent': 'Репорт отправлен ✅\n\nНаши модераторы вам скоро ответят на него 😄',
+    'report_sent': 'Репорт отправлен ✅\n\nНаши модераторы вам скоро ответят на него {}',
 }
 
 admin_messages = {

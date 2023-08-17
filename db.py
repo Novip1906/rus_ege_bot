@@ -1,4 +1,6 @@
 import sqlite3
+
+import config
 from models import Stress, Word
 from datetime import datetime, timedelta
 from config import SHOW_SUBSCR_AD, RANDOM_INTERVAL
@@ -433,4 +435,4 @@ class DB:
             return [a[0] for a in self.cur.fetchall()]
 
 
-db = DB('/Users/philippschepnov/PycharmProjects/rus_ege_stress_bot/database.db')
+db = DB(config.DB_PATH)

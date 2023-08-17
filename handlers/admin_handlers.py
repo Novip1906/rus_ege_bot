@@ -141,9 +141,9 @@ async def get_approved_explain(message: types.Message, state: FSMContext):
         db.words.write_word(word, correct, comment, message.text)
         tg_id = db.words.get_new_word_tg_id(id)
         db.users.add_money(tg_id, MONEY_FOR_WORD)
-
         await utils.notify_about_approve(tg_id, correct)
         await message.answer('Одобрено!', reply_markup=main_kb)
+        await state.finish()
 
 async def report_cmd(message: types.Message, state: FSMContext):
     if db.admin.get_adm_lvl(message.from_user.id) == 0:
