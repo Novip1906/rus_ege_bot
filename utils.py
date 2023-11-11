@@ -4,7 +4,7 @@ from aiogram.types import ParseMode
 
 import config
 from create_bot import bot
-from keyboards import get_stress_kb, words_kb, empty_inl, channel_link_kb, check_for_sub_kb
+from keyboards import get_stress_kb, words_kb, get_word_report_kb
 from models import Word, Stress
 from config import messages as ms, MONEY_FOR_REFERAL
 from aiogram import types
@@ -35,6 +35,7 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
         new_comment = ''
         explain = 'Пояснение: ' if not isStress else ''
         sub_ad = ''
+        markup = get_stress_kb(word.value.lower()) if isStress else words_kb
         if right_word.comment_exists():
             comment = f"({right_word.comment})"
         if word.comment_exists():
@@ -46,8 +47,8 @@ async def send_word(message: types.Message, word, isStress: bool, right_word=Non
                 explain += right_word.explain + '\n'
             else:
                 explain += '🔒\n'
+            markup = get_word_report_kb(message.text)
         value = word.value.lower() if isStress else word.value
-        markup = get_stress_kb(word.value.lower()) if isStress else words_kb
         ans = ms['right'].format(value, new_comment, '') if right else (
             ms['wrong'].format(right_word.value if isStress else right_word.correct, comment, explain, value, new_comment, sub_ad))
         await message.answer(ans, reply_markup=markup, parse_mode=ParseMode.HTML)
@@ -76,6 +77,5 @@ async def check_sub_channel(tg_id):
     return member['status'] != 'left'
 
 def get_random_emoji() -> str:
-    rand = random.randint(0, len(config.emoji) - 1)
-    print(rand)
+    rand = random.randint(0, len(config.emoji) - 2)
     return config.emoji[rand]

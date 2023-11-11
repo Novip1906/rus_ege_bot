@@ -31,6 +31,20 @@ async def global_message_cmd(message: types.Message):
         await message.reply("Сообщение:", reply=False)
         await FSM_gmsg.msg.set()
 
+async def admin_msg(message: types.Message):
+    if db.admin.get_adm_lvl(message.from_user.id) > 0:
+        args = message.get_args()
+        if len(args) < 2:
+            await message.answer('/amsg tg_id сообщение')
+            return
+        args = args.split(' ')
+        tg_id, msg = args[0], ' '.join(args[1:])
+        try:
+            await bot.send_message(tg_id, ms['admin_msg'].format(msg))
+            await message.answer('отправилось')
+        except:
+            await message.answer('ошибка')
+
 async def ban_cmd(message: types.Message):
     if db.admin.get_adm_lvl(message.from_user.id) > 0:
         args = message.get_args().split(' ')
@@ -231,6 +245,7 @@ def reg_admin_handlers(dp: Dispatcher):
     dp.register_message_handler(sql_cmd, commands=['sql'])
     dp.register_message_handler(ban_cmd, commands=['ban'])
     dp.register_message_handler(unban_cmd, commands=['unban'])
+    dp.register_message_handler(admin_msg, commands=['amsg'])
     #dp.register_message_handler(give_sub_cmd, commands=['givesub'])
     dp.register_message_handler(get_msg, state=FSM_gmsg.msg, content_types=['photo', 'text'])
     dp.register_message_handler(yes_no, state=FSM_gmsg.sure)

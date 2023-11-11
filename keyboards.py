@@ -1,11 +1,14 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode, InputFile
 from aiogram import Dispatcher, types
 from aiogram.utils.deep_linking import get_start_link
-
+import qrcode
 import config
+import utils
 from db import db
-from config import MAX_PROBLEM_WORDS, buttons as btns, messages as ms
+from config import MAX_PROBLEM_WORDS, buttons as btns, messages as ms, admin_messages as ams
 from handlers.FSM import FSM_stress_goal, FSM_words_goal
+from create_bot import bot
+import os
 
 vowels = ['а', 'е', 'ё', 'и', 'о', 'у', 'ы', 'э', 'ю', 'я']
 
@@ -49,6 +52,15 @@ channel_link_kb = InlineKeyboardMarkup().add(InlineKeyboardButton('Наш кан
 check_for_sub_kb = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(btns['check']))
 
 
+def get_word_report_kb(msg: str):
+    return InlineKeyboardMarkup().add(InlineKeyboardButton('Ошибка', callback_data=f'word_report{msg}'))
+
+async def word_report_callback(query: types.CallbackQuery):
+    print(123)
+    umsg = query.data[len('word_report'):]
+    print(umsg)
+    await utils.send_message_to_admin(ams['word_report'].format(umsg, query.message.text))
+
 def get_settings_inl_kb(sub_active):
     settings_inl_kb = InlineKeyboardMarkup(resize_keyboard=True)
     if sub_active:
@@ -84,7 +96,6 @@ def get_profile_inline(sub_active) -> InlineKeyboardMarkup:
 def get_sub_price_kb(balance):
     _, periods, prices = config.PRICES
     kb = InlineKeyboardMarkup()
-    print(periods, prices)
     for i in range(len(prices)):
         kb.add(InlineKeyboardButton(f"{periods[i]} ({prices[i]}₽) {'✅' if prices[i] <= balance else '❌'}",
                                     callback_data=f'price{i}'))
@@ -148,8 +159,17 @@ async def stats_callback(query: types.CallbackQuery):
 
 async def ref_link_callback(query: types.CallbackQuery):
     ref_link = await get_start_link(str(query.from_user.id), encode=True)
-    back_kb = InlineKeyboardMarkup().add(InlineKeyboardButton(btns['back'], callback_data='profile_main'))
+    back_kb = InlineKeyboardMarkup().add(InlineKeyboardButton(btns['get_qr'], callback_data='qrcode')).add(InlineKeyboardButton(btns['back'], callback_data='profile_main'))
     await query.message.edit_text(ms['ref_link'].format(ref_link), parse_mode=ParseMode.HTML, reply_markup=back_kb)
+
+async def qr_code_handler(query: types.CallbackQuery):
+    ref_link = await get_start_link(str(query.from_user.id), encode=True)
+    img = qrcode.make(ref_link)
+    path = f'qrcodes/{query.from_user.id}.png'
+    img.save(path)
+    with open(path, 'rb') as file:
+        await bot.send_photo(query.message.chat.id, InputFile(file))
+    os.remove(path)
 
 async def profile_handler(query: types.CallbackQuery):
     status = query.data.split('_')[1]
@@ -162,9 +182,9 @@ async def process_stats_period_choose_callback(query: types.CallbackQuery):
     if period.isdigit():
         period = int(period)
     pstress = '\n'.join(
-        [f"\t- {word[0]} ({word[1]})" for word in db.stress.get_problem_words(user_id, MAX_PROBLEM_WORDS, 2)])
+        [f"\t- {word[0]} ({word[1]})" for word in db.stress.get_problem_words(user_id, MAX_PROBLEM_WORDS, period)])
     pwords = '\n'.join(
-        [f"\t- {word[0]} ({word[1]})" for word in db.words.get_problem_words(query.from_user.id, MAX_PROBLEM_WORDS, 2)])
+        [f"\t- {word[0]} ({word[1]})" for word in db.words.get_problem_words(query.from_user.id, MAX_PROBLEM_WORDS, period)])
     if len(pstress) == 0:
         pstress = 'Таких нет 😄'
     if len(pwords) == 0:
@@ -248,3 +268,5 @@ def reg_inline_callbacks(dp: Dispatcher):
     dp.register_callback_query_handler(reset_stats, text_startswith='reset-stats')
     dp.register_callback_query_handler(sub_handler, text_startswith='sub')
     dp.register_callback_query_handler(price_handler, text_startswith='price')
+    dp.register_callback_query_handler(word_report_callback, text_startswith='word_report')
+    dp.register_callback_query_handler(qr_code_handler, text_startswith='qrcode')
